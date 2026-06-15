@@ -1,0 +1,460 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		A1A2B3C4D5E6F7G8H9I0J1K /* SystemMonitorApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1A2B3C4D5E6F7G8H9I0J1L /* SystemMonitorApp.swift */; };
+		A2B3C4D5E6F7G8H9I0J1K2L /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2B3C4D5E6F7G8H9I0J1K2M /* ContentView.swift */; };
+		A3B4C5D6E7F8G9H0I1J2K3L /* MenuBarManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3B4C5D6E7F8G9H0I1J2K3M /* MenuBarManager.swift */; };
+		A4B5C6D7E8F9G0H1I2J3K4L /* CircularGauge.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4B5C6D7E8F9G0H1I2J3K4M /* CircularGauge.swift */; };
+		A5B6C7D8E9F0G1H2I3J4K5L /* CPUMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5B6C7D8E9F0G1H2I3J4K5M /* CPUMonitor.swift */; };
+		A6B7C8D9E0F1G2H3I4J5K6L /* NetworkMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6B7C8D9E0F1G2H3I4J5K6M /* NetworkMonitor.swift */; };
+		A7B8C9D0E1F2G3H4I5J6K7L /* MemoryMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7B8C9D0E1F2G3H4I5J6K7M /* MemoryMonitor.swift */; };
+		A8B9C0D1E2F3G4H5I6J7K8L /* DiskMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = A8B9C0D1E2F3G4H5I6J7K8M /* DiskMonitor.swift */; };
+		A9C0D1E2F3G4H5I6J7K8L9M /* BatteryMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9C0D1E2F3G4H5I6J7K8L9N /* BatteryMonitor.swift */; };
+		AA1B2C3D4E5F6G7H8I9J0KL /* PopoverView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1B2C3D4E5F6G7H8I9J0KM /* PopoverView.swift */; };
+		AB2C3D4E5F6G7H8I9J0K1LM /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB2C3D4E5F6G7H8I9J0K1LN /* SettingsView.swift */; };
+		AC3D4E5F6G7H8I9J0K1L2M /* GlassCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC3D4E5F6G7H8I9J0K1L2N /* GlassCard.swift */; };
+		AD4E5F6G7H8I9J0K1L2M3N /* AnimatedGradient.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD4E5F6G7H8I9J0K1L2M3O /* AnimatedGradient.swift */; };
+		AE5F6G7H8I9J0K1L2M3N4O /* TemperatureMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE5F6G7H8I9J0K1L2M3N4P /* TemperatureMonitor.swift */; };
+		AF6G7H8I9J0K1L2M3N4O5P /* ProcessMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF6G7H8I9J0K1L2M3N4O5Q /* ProcessMonitor.swift */; };
+		AG7H8I9J0K1L2M3N4O5P6Q /* SystemInfoMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = AG7H8I9J0K1L2M3N4O5P6R /* SystemInfoMonitor.swift */; };
+		AH8I9J0K1L2M3N4O5P6Q7R /* SparklineChart.swift in Sources */ = {isa = PBXBuildFile; fileRef = AH8I9J0K1L2M3N4O5P6Q7S /* SparklineChart.swift */; };
+		AI9J0K1L2M3N4O5P6Q7R8S /* ProgressBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = AI9J0K1L2M3N4O5P6Q7R8T /* ProgressBar.swift */; };
+		AJ0K1L2M3N4O5P6Q7R8S9T /* NotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AJ0K1L2M3N4O5P6Q7R8S9U /* NotificationManager.swift */; };
+		AK1L2M3N4O5P6Q7R8S9T0U /* DataExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = AK1L2M3N4O5P6Q7R8S9T0V /* DataExporter.swift */; };
+		AL2M3N4O5P6Q7R8S9T0U1V /* ThemeManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AL2M3N4O5P6Q7R8S9T0U1W /* ThemeManager.swift */; };
+		AM3N4O5P6Q7R8S9T0U1V2W /* MenuBarDisplay.swift in Sources */ = {isa = PBXBuildFile; fileRef = AM3N4O5P6Q7R8S9T0U1V2X /* MenuBarDisplay.swift */; };
+		AN4O5P6Q7R8S9T0U1V2W3X /* SpeedTestMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = AN4O5P6Q7R8S9T0U1V2W3Y /* SpeedTestMonitor.swift */; };
+		AO5P6Q7R8S9T0U1V2W3X4Y /* PerformanceMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = AO5P6Q7R8S9T0U1V2W3X4Z /* PerformanceMonitor.swift */; };
+		AP6Q7R8S9T0U1V2W3X4Y5Z /* HealthMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = AP6Q7R8S9T0U1V2W3X4Y5A /* HealthMonitor.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		A1A2B3C4D5E6F7G8H9I0J1L /* SystemMonitorApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemMonitorApp.swift; sourceTree = "<group>"; };
+		A2B3C4D5E6F7G8H9I0J1K2M /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		A3B4C5D6E7F8G9H0I1J2K3M /* MenuBarManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarManager.swift; sourceTree = "<group>"; };
+		A4B5C6D7E8F9G0H1I2J3K4M /* CircularGauge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CircularGauge.swift; sourceTree = "<group>"; };
+		A5B6C7D8E9F0G1H2I3J4K5M /* CPUMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CPUMonitor.swift; sourceTree = "<group>"; };
+		A6B7C8D9E0F1G2H3I4J5K6M /* NetworkMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkMonitor.swift; sourceTree = "<group>"; };
+		A7B8C9D0E1F2G3H4I5J6K7M /* MemoryMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryMonitor.swift; sourceTree = "<group>"; };
+		A8B9C0D1E2F3G4H5I6J7K8M /* DiskMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiskMonitor.swift; sourceTree = "<group>"; };
+		A9C0D1E2F3G4H5I6J7K8L9N /* BatteryMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BatteryMonitor.swift; sourceTree = "<group>"; };
+		AA1B2C3D4E5F6G7H8I9J0KM /* PopoverView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PopoverView.swift; sourceTree = "<group>"; };
+		AB2C3D4E5F6G7H8I9J0K1LN /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		AC3D4E5F6G7H8I9J0K1L2N /* GlassCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassCard.swift; sourceTree = "<group>"; };
+		AD4E5F6G7H8I9J0K1L2M3O /* AnimatedGradient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnimatedGradient.swift; sourceTree = "<group>"; };
+		AE5F6G7H8I9J0K1L2M3N4P /* TemperatureMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TemperatureMonitor.swift; sourceTree = "<group>"; };
+		AF6G7H8I9J0K1L2M3N4O5Q /* ProcessMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProcessMonitor.swift; sourceTree = "<group>"; };
+		AG7H8I9J0K1L2M3N4O5P6R /* SystemInfoMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemInfoMonitor.swift; sourceTree = "<group>"; };
+		AH8I9J0K1L2M3N4O5P6Q7S /* SparklineChart.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SparklineChart.swift; sourceTree = "<group>"; };
+		AI9J0K1L2M3N4O5P6Q7R8T /* ProgressBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressBar.swift; sourceTree = "<group>"; };
+		AJ0K1L2M3N4O5P6Q7R8S9U /* NotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationManager.swift; sourceTree = "<group>"; };
+		AK1L2M3N4O5P6Q7R8S9T0V /* DataExporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataExporter.swift; sourceTree = "<group>"; };
+		AL2M3N4O5P6Q7R8S9T0U1W /* ThemeManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeManager.swift; sourceTree = "<group>"; };
+		AM3N4O5P6Q7R8S9T0U1V2X /* MenuBarDisplay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarDisplay.swift; sourceTree = "<group>"; };
+		AN4O5P6Q7R8S9T0U1V2W3Y /* SpeedTestMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeedTestMonitor.swift; sourceTree = "<group>"; };
+		AO5P6Q7R8S9T0U1V2W3X4Z /* PerformanceMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerformanceMonitor.swift; sourceTree = "<group>"; };
+		AP6Q7R8S9T0U1V2W3X4Y5A /* HealthMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthMonitor.swift; sourceTree = "<group>"; };
+		AQ7R8S9T0U1V2W3X4Y5Z6A /* SystemMonitorApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SystemMonitorApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		AR8S9T0U1V2W3X4Y5Z6A7B /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		AS9T0U1V2W3X4Y5Z6A7B8C /* SystemMonitorApp */ = {
+			isa = PBXGroup;
+			children = (
+				A1A2B3C4D5E6F7G8H9I0J1L /* SystemMonitorApp.swift */,
+				A2B3C4D5E6F7G8H9I0J1K2M /* ContentView.swift */,
+				A3B4C5D6E7F8G9H0I1J2K3M /* MenuBarManager.swift */,
+				AM3N4O5P6Q7R8S9T0U1V2X /* MenuBarDisplay.swift */,
+				AN4O5P6Q7R8S9T0U1V2W3Y /* SpeedTestMonitor.swift */,
+				AO5P6Q7R8S9T0U1V2W3X4Z /* PerformanceMonitor.swift */,
+				AP6Q7R8S9T0U1V2W3X4Y5A /* HealthMonitor.swift */,
+				AA1B2C3D4E5F6G7H8I9J0KM /* PopoverView.swift */,
+				AB2C3D4E5F6G7H8I9J0K1LN /* SettingsView.swift */,
+				AT0U1V2W3X4Y5Z6A7B8C9D /* Monitors */,
+				AU0V1W2X3Y4Z5A6B7C8D9E /* Views */,
+				AV0V1W2X3Y4Z5A6B7C8D9E0F /* Components */,
+				AW0V1W2X3Y4Z5A6B7C8D9E0G /* Models */,
+				AX0V1W2X3Y4Z5A6B7C8D9E0H /* Utils */,
+			);
+			path = SystemMonitorApp;
+			sourceTree = "<group>";
+		};
+		AT0U1V2W3X4Y5Z6A7B8C9D /* Monitors */ = {
+			isa = PBXGroup;
+			children = (
+				A5B6C7D8E9F0G1H2I3J4K5M /* CPUMonitor.swift */,
+				A6B7C8D9E0F1G2H3I4J5K6M /* NetworkMonitor.swift */,
+				A7B8C9D0E1F2G3H4I5J6K7M /* MemoryMonitor.swift */,
+				A8B9C0D1E2F3G4H5I6J7K8M /* DiskMonitor.swift */,
+				A9C0D1E2F3G4H5I6J7K8L9N /* BatteryMonitor.swift */,
+				AE5F6G7H8I9J0K1L2M3N4P /* TemperatureMonitor.swift */,
+				AF6G7H8I9J0K1L2M3N4O5Q /* ProcessMonitor.swift */,
+				AG7H8I9J0K1L2M3N4O5P6R /* SystemInfoMonitor.swift */,
+			);
+			path = Monitors;
+			sourceTree = "<group>";
+		};
+		AU0V1W2X3Y4Z5A6B7C8D9E /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				A4B5C6D7E8F9G0H1I2J3K4M /* CircularGauge.swift */,
+				AH8I9J0K1L2M3N4O5P6Q7S /* SparklineChart.swift */,
+				AI9J0K1L2M3N4O5P6Q7R8T /* ProgressBar.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		AV0V1W2X3Y4Z5A6B7C8D9E0F /* Components */ = {
+			isa = PBXGroup;
+			children = (
+				AC3D4E5F6G7H8I9J0K1L2N /* GlassCard.swift */,
+				AD4E5F6G7H8I9J0K1L2M3O /* AnimatedGradient.swift */,
+			);
+			path = Components;
+			sourceTree = "<group>";
+		};
+		AW0V1W2X3Y4Z5A6B7C8D9E0G /* Models */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		AX0V1W2X3Y4Z5A6B7C8D9E0H /* Utils */ = {
+			isa = PBXGroup;
+			children = (
+				AJ0K1L2M3N4O5P6Q7R8S9U /* NotificationManager.swift */,
+				AK1L2M3N4O5P6Q7R8S9T0V /* DataExporter.swift */,
+				AL2M3N4O5P6Q7R8S9T0U1W /* ThemeManager.swift */,
+			);
+			path = Utils;
+			sourceTree = "<group>";
+		};
+		AY0V1W2X3Y4Z5A6B7C8D9E0I /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				AQ7R8S9T0U1V2W3X4Y5Z6A /* SystemMonitorApp.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		AZ0V1W2X3Y4Z5A6B7C8D9E0J /* */ = {
+			isa = PBXGroup;
+			children = (
+				AS9T0U1V2W3X4Y5Z6A7B8C /* SystemMonitorApp */,
+				AY0V1W2X3Y4Z5A6B7C8D9E0I /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		BA1W2X3Y4Z5A6B7C8D9E0K /* SystemMonitorApp */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = BB2X3Y4Z5A6B7C8D9E0L /* Build configuration list for PBXNativeTarget "SystemMonitorApp" */;
+			buildPhases = (
+				BC3Y4Z5A6B7C8D9E0M /* Sources */,
+				AR8S9T0U1V2W3X4Y5Z6A7B /* Frameworks */,
+				BD4Z5A6B7C8D9E0M1N /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = SystemMonitorApp;
+			productName = SystemMonitorApp;
+			productReference = AQ7R8S9T0U1V2W3X4Y5Z6A /* SystemMonitorApp.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		BE5Z6A6B7C8D9E0M1N /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1500;
+				LastUpgradeCheck = 1500;
+				TargetAttributes = {
+					BA1W2X3Y4Z5A6B7C8D9E0K = {
+						CreatedOnToolsVersion = 15.0;
+					};
+				};
+			};
+			buildConfigurationList = BF6A6B7C8D9E0M1N /* Build configuration list for PBXProject "SystemMonitorApp" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = AZ0V1W2X3Y4Z5A6B7C8D9E0J;
+			productRefGroup = AY0V1W2X3Y4Z5A6B7C8D9E0I /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				BA1W2X3Y4Z5A6B7C8D9E0K /* SystemMonitorApp */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		BD4Z5A6B7C8D9E0M1N /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		BC3Y4Z5A6B7C8D9E0M /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A1A2B3C4D5E6F7G8H9I0J1K /* SystemMonitorApp.swift in Sources */,
+				A2B3C4D5E6F7G8H9I0J1K2L /* ContentView.swift in Sources */,
+				A3B4C5D6E7F8G9H0I1J2K3L /* MenuBarManager.swift in Sources */,
+				AM3N4O5P6Q7R8S9T0U1V2W /* MenuBarDisplay.swift in Sources */,
+				AN4O5P6Q7R8S9T0U1V2W3X /* SpeedTestMonitor.swift in Sources */,
+				AO5P6Q7R8S9T0U1V2W3X4Z /* PerformanceMonitor.swift in Sources */,
+				AP6Q7R8S9T0U1V2W3X4Y5A /* HealthMonitor.swift in Sources */,
+				A4B5C6D7E8F9G0H1I2J3K4L /* CircularGauge.swift in Sources */,
+				A5B6C7D8E9F0G1H2I3J4K5L /* CPUMonitor.swift in Sources */,
+				A6B7C8D9E0F1G2H3I4J5K6L /* NetworkMonitor.swift in Sources */,
+				A7B8C9D0E1F2G3H4I5J6K7L /* MemoryMonitor.swift in Sources */,
+				A8B9C0D1E2F3G4H5I6J7K8L /* DiskMonitor.swift in Sources */,
+				A9C0D1E2F3G4H5I6J7K8L9M /* BatteryMonitor.swift in Sources */,
+				AA1B2C3D4E5F6G7H8I9J0KL /* PopoverView.swift in Sources */,
+				AB2C3D4E5F6G7H8I9J0K1LM /* SettingsView.swift in Sources */,
+				AC3D4E5F6G7H8I9J0K1L2M /* GlassCard.swift in Sources */,
+				AD4E5F6G7H8I9J0K1L2M3N /* AnimatedGradient.swift in Sources */,
+				AE5F6G7H8I9J0K1L2M3N4O /* TemperatureMonitor.swift in Sources */,
+				AF6G7H8I9J0K1L2M3N4O5Q /* ProcessMonitor.swift in Sources */,
+				AG7H8I9J0K1L2M3N4O5P6Q /* SystemInfoMonitor.swift in Sources */,
+				AH8I9J0K1L2M3N4O5P6Q7R /* SparklineChart.swift in Sources */,
+				AI9J0K1L2M3N4O5P6Q7R8S /* ProgressBar.swift in Sources */,
+				AJ0K1L2M3N4O5P6Q7R8S9T /* NotificationManager.swift in Sources */,
+				AK1L2M3N4O5P6Q7R8S9T0U /* DataExporter.swift in Sources */,
+				AL2M3N4O5P6Q7R8S9T0U1V /* ThemeManager.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		BG7A7B8C9D0E1F2G3H4I5J6K /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		BH8B9C0D1E2F3G4H5I6J7K8L /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+			};
+			name = Release;
+		};
+		BI9C0D1E2F3G4H5I6J7K8L9M /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = SystemMonitorApp/SystemMonitorApp.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSMainStoryboardFile = Main;
+				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 7.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.systemmonitor.app;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		BJ0D1E2F3G4H5I6J7K8L9M0N /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = SystemMonitorApp/SystemMonitorApp.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSMainStoryboardFile = Main;
+				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 7.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.systemmonitor.app;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		BK2X3Y4Z5A6B7C8D9E0L /* Build configuration list for PBXNativeTarget "SystemMonitorApp" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BI9C0D1E2F3G4H5I6J7K8L9M /* Debug */,
+				BJ0D1E2F3G4H5I6J7K8L9M0N /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		BL3Y4Z5A6B7C8D9E0M1N /* Build configuration list for PBXProject "SystemMonitorApp" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BG7A7B8C9D0E1F2G3H4I5J6K /* Debug */,
+				BH8B9C0D1E2F3G4H5I6J7K8L /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = BE5Z6A6B7C8D9E0M1N /* Project object */;
+}
