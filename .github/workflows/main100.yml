@@ -1,0 +1,27 @@
+name: Build macOS
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build-macos:
+    runs-on: macos-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Build
+      run: |
+        xcodebuild -project "SystemMonitorApp 2/SystemMonitorApp.xcodeproj" \
+          -scheme SystemMonitorApp \
+          -configuration Release \
+          CODE_SIGN_IDENTITY="" \
+          CODE_SIGNING_REQUIRED=NO
+          
+    - name: Upload app
+      uses: actions/upload-artifact@v4
+      with:
+        name: SystemMonitorApp
+        path: build/Build/Products/Release/SystemMonitorApp.app
