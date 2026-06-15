@@ -1,0 +1,24 @@
+name: Build macOS
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build-macos:
+    runs-on: macos-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Debug - List all files
+      run: |
+        echo "=== Contenu racine ==="
+        ls -la
+        echo ""
+        echo "=== Recherche .xcodeproj ==="
+        find . -name "*.xcodeproj" -type d
+        echo ""
+        echo "=== Structure complète ==="
+        find . -type d -name "*.xcodeproj" -exec dirname {} \;
