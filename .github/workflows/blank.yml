@@ -1,0 +1,45 @@
+name: Build macOS
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-macos:
+    runs-on: macos-15-arm64
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Find Xcode project
+      run: |
+        XCODEPROJ_PATH=$(find . -name "*.xcodeproj" | head -n 1)
+        if [ -z "$XCODEPROJ_PATH" ]; then
+          echo "❌ Impossible de trouver un fichier .xcodeproj !"
+          exit 1
+        fi
+        echo "📍 Projet trouvé : $XCODEPROJ_PATH"
+        echo "XCODEPROJ_PATH=$XCODEPROJ_PATH" >> $GITHUB_ENV
+        
+    - name: List Xcode project schemes
+      run: |
+        xcodebuild -list -project "$XCODEPROJ_PATH"
+        
+    - name: Build Xcode project
+      run: |
+        xcodebuild -project "$XCODEPROJ_PATH" \
+          -scheme SystemMonitorApp \
+          -configuration Release \
+          -derivedDataPath ./build \
+          CODE_SIGN_IDENTITY="" \
+          CODE_SIGNING_REQUIRED=NO \
+          CODE_SIGNING_ALLOWED=NO
+          
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: macOS-app
+        path: build/Build/Products/Release/
