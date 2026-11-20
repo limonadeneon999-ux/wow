@@ -137,9 +137,11 @@ final class NativeAudioStore {
         Context context = Utils.getContext();
         // Android extracts no Matroska tags, so Opus arrives
         // as Ogg Opus and AAC as MP4, the two forms whose tags the media scanner reads.
-        boolean mp4 = AudioTagger.isMp4(mimeType);
-        mimeType = mp4 ? "audio/mp4" : "audio/ogg";
-        String extension = mp4 ? ".m4a" : ".ogg";
+        // A transcoded download is already MP3: keep that container as-is.
+        boolean mp3 = mimeType.startsWith("audio/mpeg");
+        boolean mp4 = mp3 || AudioTagger.isMp4(mimeType);
+        mimeType = mp3 ? "audio/mpeg" : mp4 ? "audio/mp4" : "audio/ogg";
+        String extension = mp3 ? ".mp3" : mp4 ? ".m4a" : ".ogg";
         String name = displayName(videoId, title, artist);
         if (Build.VERSION.SDK_INT < 29) {
             File directory = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC), "RVX");

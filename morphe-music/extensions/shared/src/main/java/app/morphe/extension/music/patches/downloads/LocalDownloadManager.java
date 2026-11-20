@@ -186,10 +186,15 @@ public final class LocalDownloadManager {
                 }
             }
             // Pending MediaStore files are hidden from native Library until the full audio has been indexed.
-            destination = NativeAudioStore.create(videoId, AudioTagger.outputMimeType(format.getMimeType()),
-                    tags.title, tags.artist);
+            boolean mp3 = Settings.DOWNLOAD_FORMAT.get() == DownloadsConfig.DownloadFormat.MP3;
+            String outputMimeType = mp3 ? "audio/mpeg" : AudioTagger.outputMimeType(format.getMimeType());
+            destination = NativeAudioStore.create(videoId, outputMimeType, tags.title, tags.artist);
             try (FileOutputStream output = destination.openOutput()) {
-                AudioTagger.write(temporary, format.getMimeType(), output, tags);
+                if (mp3) {
+                    Mp3Transcoder.write(temporary, Settings.DOWNLOAD_QUALITY.get().bitrateKbps, output, tags);
+                } else {
+                    AudioTagger.write(temporary, format.getMimeType(), output, tags);
+                }
             }
             Uri uri = NativeAudioStore.finish(videoId, destination);
             destination = null;

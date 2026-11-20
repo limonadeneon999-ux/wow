@@ -23,6 +23,8 @@ import app.morphe.extension.music.patches.lyrics.AiProviders;
 import app.morphe.extension.music.patches.lyrics.OpenAIClient;
 import app.morphe.extension.music.patches.CrossfadeManager.CrossFadeDuration;
 import app.morphe.extension.music.patches.CrossfadeManager.FadeCurve;
+import app.morphe.extension.music.patches.downloads.DownloadsConfig.DownloadFormat;
+import app.morphe.extension.music.patches.downloads.DownloadsConfig.DownloadQuality;
 import app.morphe.extension.music.patches.general.ChangeStartPagePatch.StartPage;
 import app.morphe.extension.music.patches.misc.AlbumMusicVideoPatch.RedirectType;
 import app.morphe.extension.music.patches.utils.PatchStatus;
@@ -421,6 +423,11 @@ public class Settings extends SharedYouTubeSettings {
     public static final BooleanSetting IN_APP_DOWNLOADS = new BooleanSetting("morphe_music_in_app_downloads", TRUE, false, "morphe_music_in_app_downloads_user_dialog_message");
     public static final BooleanSetting DOWNLOADS_MARK = new BooleanSetting("morphe_music_downloads_mark", TRUE, parent(IN_APP_DOWNLOADS));
     public static final StringSetting DOWNLOADS_SORT = new StringSetting("morphe_music_downloads_sort", "ARTIST", false, false);
+    public static final EnumSetting<DownloadFormat> DOWNLOAD_FORMAT = new EnumSetting<>("morphe_music_download_format", DownloadFormat.MP3, true, parent(NATIVE_DOWNLOADS));
+    public static final EnumSetting<DownloadQuality> DOWNLOAD_QUALITY = new EnumSetting<>("morphe_music_download_quality", DownloadQuality.STANDARD, true, parent(NATIVE_DOWNLOADS));
+    public static final BooleanSetting AUTO_DOWNLOAD_TOP_TRACKS = new BooleanSetting("morphe_music_auto_download_top_tracks", TRUE, parent(NATIVE_DOWNLOADS));
+    public static final IntegerSetting AUTO_DOWNLOAD_TOP_TRACKS_COUNT =
+            new IntegerSetting("morphe_music_auto_download_top_tracks_count", 10, new Setting.SliderConfig(1, 100, 1, "tracks"), parent(AUTO_DOWNLOAD_TOP_TRACKS));
     public static final BooleanSetting SETTINGS_IMPORT_EXPORT = new BooleanSetting("revanced_settings_import_export", FALSE, false);
     public static final BooleanSetting SPOOF_VIDEO_STREAMS_SIGN_IN_ANDROID_VR_ABOUT =
             new BooleanSetting("morphe_spoof_video_streams_sign_in_android_vr_about", FALSE, false);
