@@ -1,0 +1,322 @@
+/*
+ * Portions of this file are ported from Morphe:
+ * Copyright 2026 Morphe.
+ * https://github.com/MorpheApp/morphe-patches
+ *
+ * Original hard forked code:
+ * https://github.com/ReVanced/revanced-patches/commit/724e6d61b2ecd868c1a9a37d465a688e83a74799
+ *
+ * See the included NOTICE file for GPLv3 Section 7 terms that apply to Morphe contributions.
+ *
+ * Modified by lavinhoque33, 2026-10-21.
+ */
+
+package app.morphe.patches.youtube.general.components
+
+import app.morphe.patches.youtube.utils.proto.elementProtoParserHookPatch
+import app.morphe.patches.youtube.utils.proto.hookElement
+
+import app.morphe.patcher.extensions.InstructionExtensions.addInstruction
+import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
+import app.morphe.patcher.extensions.InstructionExtensions.addInstructionsWithLabels
+import app.morphe.patcher.extensions.InstructionExtensions.getInstruction
+import app.morphe.patcher.patch.PatchException
+import app.morphe.patcher.patch.bytecodePatch
+import app.morphe.patcher.util.findFreeRegister
+import app.morphe.patcher.util.getReference
+import app.morphe.patches.shared.litho.addLithoFilter
+import app.morphe.patches.shared.litho.lithoFilterPatch
+import app.morphe.patches.shared.viewgroup.viewGroupMarginLayoutParamsHookPatch
+import app.morphe.patches.youtube.utils.compatibility.Constants.COMPATIBILITY_YOUTUBE
+import app.morphe.patches.youtube.utils.extension.Constants.COMPONENTS_PATH
+import app.morphe.patches.youtube.utils.extension.Constants.GENERAL_CLASS_DESCRIPTOR
+import app.morphe.patches.youtube.utils.fix.litho.lithoLayoutPatch
+import app.morphe.patches.youtube.utils.patch.PatchList.HIDE_LAYOUT_COMPONENTS
+import app.morphe.patches.youtube.utils.playservice.is_20_21_or_greater
+import app.morphe.patches.youtube.utils.playservice.is_21_04_or_greater
+import app.morphe.patches.youtube.utils.playservice.is_21_11_or_greater
+import app.morphe.patches.youtube.utils.playservice.is_21_25_or_greater
+import app.morphe.patches.youtube.utils.playservice.is_21_25_or_greater
+import app.morphe.patches.youtube.utils.playservice.versionCheckPatch
+import app.morphe.patches.youtube.utils.resourceid.accountSwitcherAccessibility
+import app.morphe.patches.youtube.utils.resourceid.sharedResourceIdPatch
+import app.morphe.patches.youtube.utils.resourceid.ytCallToAction
+import app.morphe.patches.youtube.utils.settings.ResourceUtils.addPreference
+import app.morphe.patches.youtube.utils.settings.settingsPatch
+import app.morphe.util.Utils.printWarn
+import app.morphe.util.fingerprint.matchOrThrow
+import app.morphe.util.fingerprint.methodOrThrow
+import app.morphe.util.fingerprint.mutableClassOrThrow
+import app.morphe.util.findInstructionIndicesReversedOrThrow
+import app.morphe.util.indexOfFirstInstructionOrThrow
+import app.morphe.util.indexOfFirstLiteralInstructionOrThrow
+import app.morphe.util.injectHideViewCall
+import app.morphe.util.insertLiteralOverride
+import com.android.tools.smali.dexlib2.Opcode
+import com.android.tools.smali.dexlib2.iface.instruction.FiveRegisterInstruction
+import com.android.tools.smali.dexlib2.iface.instruction.OneRegisterInstruction
+import com.android.tools.smali.dexlib2.iface.instruction.ReferenceInstruction
+import com.android.tools.smali.dexlib2.iface.instruction.TwoRegisterInstruction
+import com.android.tools.smali.dexlib2.iface.reference.MethodReference
+import com.android.tools.smali.dexlib2.util.MethodUtil
+
+private const val CUSTOM_FILTER_CLASS_DESCRIPTOR =
+    "$COMPONENTS_PATH/CustomFilter;"
+private const val LAYOUT_COMPONENTS_FILTER_CLASS_DESCRIPTOR =
+    "$COMPONENTS_PATH/LayoutComponentsFilter;"
+private const val EXPLORE_MENU_FILTER_CLASS_DESCRIPTOR =
+    "$COMPONENTS_PATH/ExploreMenuFilter;"
+
+@Suppress("unused")
+val layoutComponentsPatch = bytecodePatch(
+    HIDE_LAYOUT_COMPONENTS.title,
+    HIDE_LAYOUT_COMPONENTS.summary,
+) {
+    compatibleWith(COMPATIBILITY_YOUTUBE)
+
+    dependsOn(
+        settingsPatch,
+        elementProtoParserHookPatch,
+        lithoFilterPatch,
+        lithoLayoutPatch,
+        sharedResourceIdPatch,
+        viewGroupMarginLayoutParamsHookPatch,
+        versionCheckPatch,
+    )
+
+    execute {
+        // Removes hidden post-button data before layout so the remaining buttons use its space.
+        hookElement("$LAYOUT_COMPONENTS_FILTER_CLASS_DESCRIPTOR->setPostButtons([B)[B")
+
+        var settingArray = arrayOf(
+            "PREFERENCE_SCREEN: GENERAL",
+            "SETTINGS: HIDE_LAYOUT_COMPONENTS"
+        )
+
+        // region patch for disable pip notification
+
+        if (!is_21_04_or_greater) {
+            pipNotificationFingerprint.let {
+                it.method.apply {
+                    val checkCastCalls = implementation!!.instructions.withIndex()
+                        .filter { instruction ->
+                            (instruction.value as? ReferenceInstruction)?.reference.toString() == "Lcom/google/apps/tiktok/account/AccountId;"
+                        }
+
+                    val checkCastCallSize = checkCastCalls.size
+                    if (checkCastCallSize != 3)
+                        throw PatchException("Couldn't find target index, size: $checkCastCallSize")
+
+                    arrayOf(
+                        checkCastCalls.elementAt(1).index,
+                        checkCastCalls.elementAt(0).index
+                    ).forEach { index ->
+                        addInstruction(
+                            index + 1,
+                            "return-void"
+                        )
+                    }
+                }
+            }
+        } else {
+            printWarn("\"Disable PiP notification\" is not supported in this version. Use YouTube versions up to 20.51.")
+        }
+
+        // endregion
+
+        // region patch for disable update screen
+
+        appBlockingCheckResultToStringFingerprint.classDef.methods.first { method ->
+            MethodUtil.isConstructor(method) &&
+                    method.parameters == listOf("Landroid/content/Intent;", "Z")
+        }.addInstructions(
+            1,
+            "const/4 p1, 0x0"
+        )
+
+        // endregion
+
+        // region patch for hide account menu
+
+        // for you tab
+        accountListFingerprint.method.apply {
+            val literalIndex = indexOfFirstLiteralInstructionOrThrow(ytCallToAction)
+            val targetIndex = indexOfFirstInstructionOrThrow(literalIndex) {
+                opcode == Opcode.INVOKE_VIRTUAL &&
+                        getReference<MethodReference>()?.name == "setText"
+            }
+            val targetInstruction = getInstruction<FiveRegisterInstruction>(targetIndex)
+
+            addInstruction(
+                targetIndex,
+                "invoke-static {v${targetInstruction.registerC}, v${targetInstruction.registerD}}, " +
+                        "$GENERAL_CLASS_DESCRIPTOR->hideAccountList(Landroid/view/View;Ljava/lang/CharSequence;)V"
+            )
+        }
+
+        // for tablet and old clients
+        accountMenuFingerprint.let {
+            it.method.apply {
+                val targetIndex = it.instructionMatches.first().index + 2
+                val targetInstruction = getInstruction<FiveRegisterInstruction>(targetIndex)
+
+                addInstruction(
+                    targetIndex,
+                    "invoke-static {v${targetInstruction.registerC}, v${targetInstruction.registerD}}, " +
+                            "$GENERAL_CLASS_DESCRIPTOR->hideAccountMenu(Landroid/view/View;Ljava/lang/CharSequence;)V"
+                )
+            }
+        }
+
+        // endregion
+
+        // region collapse filtered boxes of the fullscreen engagement panel
+
+        // The box keeps its rounded border and padding when the element in it is filtered.
+        MetadataHighlightsColumnMeasureFingerprint.method.apply {
+            findInstructionIndicesReversedOrThrow {
+                opcode == Opcode.INVOKE_SUPER && getReference<MethodReference>()?.name == "onMeasure"
+            }.forEach { index ->
+                val boxRegister = getInstruction<FiveRegisterInstruction>(index).registerC
+                val freeRegister = findFreeRegister(index + 1, boxRegister)
+
+                addInstructionsWithLabels(
+                    index + 1,
+                    """
+                        invoke-static { v$boxRegister }, $LAYOUT_COMPONENTS_FILTER_CLASS_DESCRIPTOR->isEngagementPanelBoxEmpty(Landroid/view/ViewGroup;)Z
+                        move-result v$freeRegister
+                        if-eqz v$freeRegister, :not_empty
+                        const/4 v$freeRegister, 0x0
+                        invoke-virtual { v$boxRegister, v$freeRegister, v$freeRegister }, $definingClass->setMeasuredDimension(II)V
+                        :not_empty
+                        nop
+                    """
+                )
+            }
+        }
+
+        // endregion
+
+        // region patch for hide floating microphone
+
+        val showFloatingMicrophoneButtonFingerprints = mutableListOf(
+            if (is_21_11_or_greater) ShowFloatingMicrophoneButtonFingerprint
+            else ShowFloatingMicrophoneButtonLegacyFingerprint
+        )
+        if (is_21_25_or_greater) {
+            showFloatingMicrophoneButtonFingerprints += ShowFloatingMicrophoneButtonStubFingerprint
+        }
+
+        showFloatingMicrophoneButtonFingerprints.forEach {
+            it.method.apply {
+                val index = it.instructionMatches.last().index
+                val register = getInstruction<TwoRegisterInstruction>(index).registerA
+
+                addInstructions(
+                    index + 1,
+                    """
+                        invoke-static { v$register }, $GENERAL_CLASS_DESCRIPTOR->hideFloatingMicrophone(Z)Z
+                        move-result v$register
+                    """
+                )
+            }
+        }
+
+        // endregion
+
+        // region patch for hide handle
+
+        accountSwitcherAccessibilityLabelFingerprint.method.apply {
+            val constIndex =
+                indexOfFirstLiteralInstructionOrThrow(accountSwitcherAccessibility)
+            val insertIndex = indexOfFirstInstructionOrThrow(constIndex, Opcode.IF_EQZ)
+            val setVisibilityIndex = indexOfFirstInstructionOrThrow(insertIndex) {
+                opcode == Opcode.INVOKE_VIRTUAL &&
+                        getReference<MethodReference>()?.name == "setVisibility"
+            }
+            val visibilityRegister =
+                getInstruction<FiveRegisterInstruction>(setVisibilityIndex).registerD
+
+            addInstructions(
+                insertIndex, """
+                    invoke-static {v$visibilityRegister}, $GENERAL_CLASS_DESCRIPTOR->hideHandle(I)I
+                    move-result v$visibilityRegister
+                    """
+            )
+        }
+
+        // endregion
+
+        // region patch for hide tooltip content
+
+        // YouTube 21.39 removed feature flag 45384061 (fullscreen tooltip) entirely; skip this hook if the method is gone.
+        // The fullscreen tooltip code path is gone in 21.39, and the remaining tooltips are still hidden below.
+        runCatching { tooltipContentFullscreenFingerprint.method }.getOrNull()?.apply {
+            val literalIndex = indexOfFirstLiteralInstructionOrThrow(45384061L)
+            val targetIndex = indexOfFirstInstructionOrThrow(literalIndex, Opcode.MOVE_RESULT)
+            val targetRegister = getInstruction<OneRegisterInstruction>(targetIndex).registerA
+
+            addInstruction(
+                targetIndex + 1,
+                "const/4 v$targetRegister, 0x0"
+            )
+        }
+
+        tooltipContentViewFingerprint.method.addInstruction(
+            0,
+            "return-void"
+        )
+
+        // endregion
+
+        // region hide sync button
+
+        if (is_20_21_or_greater) {
+            SyncButtonFingerprint.let {
+                val syncButtonIndex = it.instructionMatches.last().index
+                val viewRegister = it.method.getInstruction<OneRegisterInstruction>(syncButtonIndex).registerA
+
+                it.method.injectHideViewCall(
+                    syncButtonIndex + 1,
+                    viewRegister,
+                    LAYOUT_COMPONENTS_FILTER_CLASS_DESCRIPTOR,
+                    "hideSyncButton"
+                )
+            }
+        }
+
+        // endregion
+
+
+        // region fix live chat text field behind the navigation bar
+
+        // https://github.com/MorpheApp/morphe-patches/issues/3453
+        // The flag is read by different layouts, and each must use the same value,
+        // otherwise other panels such as the comments show the bottom padding twice.
+        // Flag was removed in 21.25+.
+        if (is_21_11_or_greater && !is_21_25_or_greater) {
+            EngagementPanelEdgeToEdgeFeatureFlagFingerprint.matchAll().forEach {
+                it.method.insertLiteralOverride(
+                    it.instructionMatches.first().index,
+                    false
+                )
+            }
+        }
+
+        // endregion
+
+        addLithoFilter(CUSTOM_FILTER_CLASS_DESCRIPTOR)
+        addLithoFilter(LAYOUT_COMPONENTS_FILTER_CLASS_DESCRIPTOR)
+        addLithoFilter(EXPLORE_MENU_FILTER_CLASS_DESCRIPTOR)
+
+        // region add settings
+
+        addPreference(
+            settingArray,
+            HIDE_LAYOUT_COMPONENTS
+        )
+
+        // endregion
+
+    }
+}

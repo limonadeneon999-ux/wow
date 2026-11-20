@@ -1,0 +1,185 @@
+/*
+ * Copyright 2026 Morphe.
+ * https://github.com/MorpheApp/morphe-patches
+ *
+ * See the included NOTICE file for GPLv3 Section 7 terms that apply to this code.
+ *
+ * Modified by lavinhoque33, 2026-10-21.
+ */
+
+package app.morphe.patches.youtube.general.spoofappversion
+
+import app.morphe.patcher.Fingerprint
+import app.morphe.patcher.extensions.InstructionExtensions.addInstructionsWithLabels
+import app.morphe.patcher.extensions.InstructionExtensions.getInstruction
+import app.morphe.patcher.patch.bytecodePatch
+import app.morphe.patcher.util.proxy.mutableTypes.MutableMethod.Companion.toMutable
+import app.morphe.patches.youtube.utils.extension.sharedExtensionPatch
+import app.morphe.patches.shared.spoof.guide.BuildClientContextBodyFingerprint
+import app.morphe.patches.youtube.utils.playservice.versionCheckPatch
+import app.morphe.util.addInstructionsAtControlFlowLabel
+import app.morphe.util.cloneMutableAndPreserveParameters
+import app.morphe.util.findInstructionIndicesReversedOrThrow
+import com.android.tools.smali.dexlib2.AccessFlags
+import com.android.tools.smali.dexlib2.Opcode
+import com.android.tools.smali.dexlib2.builder.MutableMethodImplementation
+import com.android.tools.smali.dexlib2.iface.instruction.ReferenceInstruction
+import com.android.tools.smali.dexlib2.iface.reference.FieldReference
+import com.android.tools.smali.dexlib2.iface.reference.MethodReference
+import java.lang.ref.WeakReference
+import com.android.tools.smali.dexlib2.immutable.ImmutableMethod
+
+private lateinit var clientInfoField: FieldReference
+private lateinit var clientVersionField: FieldReference
+private lateinit var messageLiteBuilderField: FieldReference
+private lateinit var messageLiteBuilderMethod: MethodReference
+private lateinit var osNameFieldRef: WeakReference<FieldReference>
+private var contextHookInitialized = false
+
+internal enum class Endpoint(
+    vararg val parentFingerprints: Fingerprint,
+    var smaliInstructions: String = "",
+) {
+    GET_WATCH(
+        GetWatchEndpointConstructorPrimaryFingerprint,
+        GetWatchEndpointConstructorSecondaryFingerprint,
+    ),
+    NEXT(NextEndpointParentFingerprint),
+    REEL(
+        ReelCreateItemsEndpointConstructorFingerprint,
+        ReelItemWatchEndpointConstructorFingerprint,
+        ReelWatchSequenceEndpointConstructorFingerprint,
+    ),
+}
+
+/**
+ * Provides endpoint-specific hooks for fields shared by InnerTube request bodies.
+ *
+ * Shorts use their own OS-name hook so a whitelisted regular channel cannot enable Shorts feed ads.
+ * The version hook also selects the modern Shorts overlay on YouTube 21.05 and newer.
+ */
+internal val clientContextHookPatch = bytecodePatch(
+    description = "Hooks the context body of InnerTube endpoints.",
+) {
+    dependsOn(sharedExtensionPatch, versionCheckPatch)
+
+    execute {
+        contextHookInitialized = false
+        Endpoint.entries.forEach { it.smaliInstructions = "" }
+
+        BuildDummyClientContextBodyFingerprint.let {
+            it.method.apply {
+                val clientInfoIndex = it.instructionMatches.last().index
+                val clientVersionIndex = it.instructionMatches[2].index
+                val messageLiteBuilderIndex = it.instructionMatches.first().index
+
+                clientInfoField =
+                    getInstruction<ReferenceInstruction>(clientInfoIndex).reference as FieldReference
+                clientVersionField =
+                    getInstruction<ReferenceInstruction>(clientVersionIndex).reference as FieldReference
+                messageLiteBuilderField =
+                    getInstruction<ReferenceInstruction>(messageLiteBuilderIndex).reference as FieldReference
+            }
+        }
+
+        AuthenticationChangeListenerFingerprint.method.apply {
+            val messageLiteBuilderIndex =
+                indexOfMessageLiteBuilderReference(this, messageLiteBuilderField.definingClass)
+
+            messageLiteBuilderMethod =
+                getInstruction<ReferenceInstruction>(messageLiteBuilderIndex).reference as MethodReference
+        }
+
+        osNameFieldRef = WeakReference(
+            BuildClientContextBodyFingerprint.method.getInstruction<ReferenceInstruction>(
+                BuildClientContextBodyFingerprint.instructionMatches[1].index
+            ).reference as FieldReference
+        )
+
+        contextHookInitialized = true
+    }
+
+    finalize {
+        if (!contextHookInitialized) return@finalize
+
+        Endpoint.entries.filter { it.smaliInstructions.isNotEmpty() }.forEach { endpoint ->
+            endpoint.parentFingerprints.forEach { parentFingerprint ->
+                // YouTube 21.39 removed the "reel/create_reel_items"
+                // endpoint class, so a parent that no longer matches is skipped instead of failing.
+                // The app no longer sends that request, and the remaining Shorts endpoints are still hooked.
+                val endpointClassDef = runCatching { parentFingerprint.originalClassDef }.getOrNull()
+                    ?: return@forEach
+
+                // Use a local fingerprint because Fingerprint caches its match.
+                val endpointRequestBodyFingerprint = Fingerprint(
+                    classFingerprint = parentFingerprint,
+                    accessFlags = listOf(AccessFlags.PROTECTED, AccessFlags.FINAL),
+                    returnType = "V",
+                    parameters = emptyList(),
+                )
+
+                endpointRequestBodyFingerprint.match(endpointClassDef).let { match ->
+                    // 21.05+ clobbers the p0 register while building the request body.
+                    match.method.cloneMutableAndPreserveParameters(match.classDef).apply {
+                        match.classDef.methods.add(
+                            ImmutableMethod(
+                                definingClass,
+                                "patch_setClientContext",
+                                emptyList(),
+                                "V",
+                                AccessFlags.PRIVATE.value or AccessFlags.FINAL.value,
+                                annotations,
+                                null,
+                                MutableMethodImplementation(5),
+                            ).toMutable().apply {
+                                addInstructionsWithLabels(
+                                    0,
+                                    """
+                                        invoke-virtual { p0 }, $messageLiteBuilderMethod
+                                        move-result-object v0
+                                        iget-object v0, v0, $messageLiteBuilderField
+                                        check-cast v0, ${clientInfoField.definingClass}
+                                        iget-object v1, v0, $clientInfoField
+                                        if-eqz v1, :ignore
+                                        ${endpoint.smaliInstructions}
+                                        :ignore
+                                        return-void
+                                    """,
+                                )
+                            },
+                        )
+
+                        findInstructionIndicesReversedOrThrow(Opcode.RETURN_VOID).forEach { index ->
+                            addInstructionsAtControlFlowLabel(
+                                index,
+                                "invoke-direct/range { p0 .. p0 }, " +
+                                        "$definingClass->patch_setClientContext()V",
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+internal fun addClientVersionHook(endpoint: Endpoint, descriptor: String) {
+    endpoint.smaliInstructions += """
+        iget-object v2, v1, $clientVersionField
+        invoke-static { v2 }, $descriptor
+        move-result-object v2
+        iput-object v2, v1, $clientVersionField
+        """
+}
+
+internal fun addOSNameHook(endPoint: Endpoint, descriptor: String) {
+    val osNameField = osNameFieldRef.get()!!
+    val smaliInstructions = """
+        iget-object v2, v1, $osNameField
+        invoke-static { v2 }, $descriptor
+        move-result-object v2
+        iput-object v2, v1, $osNameField
+        """
+
+    endPoint.smaliInstructions += smaliInstructions
+}
