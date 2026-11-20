@@ -45,6 +45,8 @@ dependencies {
     implementation(libs.nanohttpd)
     implementation(libs.protobuf.javalite)
 
+    implementation(files("libs/jump3r-1.0.5.jar"))
+
     implementation(libs.hiddenapi)
 
     coreLibraryDesugaring(libs.desugar.jdk.libs)
