@@ -105,29 +105,32 @@ public final class LocalDownloadManager {
 
     /** Must be called from the main thread. Resolution and downloading happen in background. */
     public static void enqueue(String videoId) {
+        enqueue(videoId, false);
+    }
+
+    /** Background auto-download: no toasts, silently ignores already-saved or running tracks. */
+    static void enqueueQuietly(String videoId) {
+        enqueue(videoId, true);
+    }
+
+    private static void enqueue(String videoId, boolean quiet) {
         if (!VIDEO_ID.matcher(videoId).matches()) {
-            Utils.showToastShort(str("morphe_music_downloads_unknown_track"));
+            if (!quiet) Utils.showToastShort(str("morphe_music_downloads_unknown_track"));
             return;
         }
         if (!NativeDownloads.ensureStoragePermission()) return;
-        if (ACTIVE_DOWNLOADS.containsKey(videoId)) {
-            Utils.showToastShort(str("morphe_music_downloads_already_running"));
-            return;
-        }
+        if (ACTIVE_DOWNLOADS.containsKey(videoId)) return;
         Utils.submitOnBackgroundThread(() -> {
             try {
                 NativeDownloads.migrateLegacy();
-                if (NativeAudioStore.find(videoId) != null) {
-                    Utils.showToastShort(str("morphe_music_downloads_already_saved"));
-                    return null;
-                }
-                Utils.showToastShort(str("morphe_music_downloads_started"));
+                if (NativeAudioStore.find(videoId) != null) return null;
+                if (!quiet) Utils.showToastShort(str("morphe_music_downloads_started"));
                 download(videoId);
-                Utils.showToastShort(str("morphe_music_downloads_complete"));
+                if (!quiet) Utils.showToastShort(str("morphe_music_downloads_complete"));
                 NativePlaylistStore.refreshUnsortedLater(); // list the new single.
             } catch (Exception ex) {
                 Logger.printException(() -> "Local audio download failed: " + videoId, ex);
-                Utils.showToastShort(str("morphe_music_downloads_failed"));
+                if (!quiet) Utils.showToastShort(str("morphe_music_downloads_failed"));
             }
             return null;
         });

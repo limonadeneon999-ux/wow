@@ -133,6 +133,8 @@ Lecture SABR (Falsifier les flux vidéo désactivés)"</string>
     <string name="morphe_music_downloads_started">Téléchargement démarré</string>
     <string name="morphe_music_downloads_starting">Démarrage du téléchargement…</string>
     <string name="morphe_music_downloads_unknown_track">Impossible d\'identifier le morceau à télécharger</string>
+    <string name="morphe_music_auto_download_wifi_only_summary">Télécharger automatiquement uniquement en Wi-Fi pour économiser vos données mobiles</string>
+    <string name="morphe_music_auto_download_wifi_only_title">Wi-Fi uniquement</string>
     <string name="morphe_music_auto_download_top_tracks_count_summary">Nombre de chansons les plus écoutées téléchargées automatiquement</string>
     <string name="morphe_music_auto_download_top_tracks_count_title">Nombre de téléchargements auto</string>
     <string name="morphe_music_auto_download_top_tracks_summary">Télécharge vos chansons les plus écoutées pour les avoir hors connexion</string>

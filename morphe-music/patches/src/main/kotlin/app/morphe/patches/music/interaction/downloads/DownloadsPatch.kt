@@ -122,7 +122,13 @@ private val downloadsResourcePatch = resourcePatch {
             CategoryType.MISC,
             "morphe_music_auto_download_top_tracks_count",
             tag = "app.morphe.extension.shared.settings.preference.SeekBarPreference",
-            dependencyKey = "morphe_music_in_app_downloads",
+            dependencyKey = "morphe_music_auto_download_top_tracks",
+        )
+        addSwitchPreference(
+            CategoryType.MISC,
+            "morphe_music_auto_download_wifi_only",
+            "true",
+            "morphe_music_auto_download_top_tracks",
         )
     }
 }

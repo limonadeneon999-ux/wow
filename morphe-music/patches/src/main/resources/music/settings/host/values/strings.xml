@@ -135,6 +135,8 @@ YouTube Music 8.x - crossfade only runs on 9.x and newer"</string>
     <string name="morphe_music_downloads_starting">Starting download…</string>
     <string name="morphe_music_downloads_storage_permission">Allow storage access, then tap Download again</string>
     <string name="morphe_music_downloads_unknown_track">Could not identify the track to download</string>
+    <string name="morphe_music_auto_download_wifi_only_summary">Download automatically only when connected to Wi-Fi to save your mobile data</string>
+    <string name="morphe_music_auto_download_wifi_only_title">Wi-Fi only</string>
     <string name="morphe_music_auto_download_top_tracks_count_summary">Number of most-played songs downloaded automatically</string>
     <string name="morphe_music_auto_download_top_tracks_count_title">Auto-download count</string>
     <string name="morphe_music_auto_download_top_tracks_summary">Downloads your most-played songs so they are available offline</string>
