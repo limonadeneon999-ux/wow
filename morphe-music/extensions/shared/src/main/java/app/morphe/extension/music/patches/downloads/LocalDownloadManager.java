@@ -96,6 +96,8 @@ public final class LocalDownloadManager {
         if (metadata == null) return;
         currentTitle = metadata.getString(android.media.MediaMetadata.METADATA_KEY_TITLE);
         currentArtist = metadata.getString(android.media.MediaMetadata.METADATA_KEY_ARTIST);
+        TopTracks.onTrackPlayed(app.morphe.extension.music.shared.VideoInformation.getVideoId(),
+                currentTitle, currentArtist);
     }
 
     private LocalDownloadManager() {
