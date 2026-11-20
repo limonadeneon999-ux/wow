@@ -12,6 +12,8 @@ import static app.morphe.extension.music.settings.Settings.CUSTOM_PLAYBACK_SPEED
 import static app.morphe.extension.music.settings.Settings.CUSTOM_PLAYER_BACKGROUND_COLOR_PRIMARY;
 import static app.morphe.extension.music.settings.Settings.CUSTOM_PLAYER_BACKGROUND_COLOR_SECONDARY;
 import static app.morphe.extension.music.settings.Settings.DISABLE_MUSIC_VIDEO_IN_ALBUM_REDIRECT_TYPE;
+import static app.morphe.extension.music.settings.Settings.DOWNLOAD_FORMAT;
+import static app.morphe.extension.music.settings.Settings.DOWNLOAD_QUALITY;
 import static app.morphe.extension.music.settings.Settings.ENABLE_CUSTOM_NAVIGATION_BAR_COLOR_VALUE;
 import static app.morphe.extension.music.settings.Settings.EXTERNAL_DOWNLOADER_PACKAGE_NAME;
 import static app.morphe.extension.music.settings.Settings.HIDE_ACCOUNT_MENU_FILTER_STRINGS;
@@ -203,6 +205,8 @@ public class ReVancedPreferenceFragment extends PreferenceFragment {
                         || settings.equals(CROSSFADE_CURVE)
                         || settings.equals(CROSSFADE_DURATION)
                         || settings.equals(DISABLE_MUSIC_VIDEO_IN_ALBUM_REDIRECT_TYPE)
+                        || settings.equals(DOWNLOAD_FORMAT)
+                        || settings.equals(DOWNLOAD_QUALITY)
                         || settings.equals(RETURN_YOUTUBE_USERNAME_DISPLAY_FORMAT)
                         || settings.equals(SPOOF_VIDEO_STREAMS_CLIENT_TYPE)
                         || settings.equals(WATCH_HISTORY_TYPE)

@@ -35,8 +35,11 @@ import app.morphe.patches.music.utils.playservice.is_7_25_or_greater
 import app.morphe.patches.music.utils.settings.CategoryType
 import app.morphe.patches.music.utils.settings.ResourceUtils.addPreferenceCategory
 import app.morphe.patches.music.utils.settings.ResourceUtils.updatePatchStatus
+import app.morphe.patches.music.utils.settings.addCustomPreference
+import app.morphe.patches.music.utils.settings.addListPreference
 import app.morphe.patches.music.utils.settings.addSwitchPreference
 import app.morphe.patches.music.utils.settings.settingsPatch
+import app.morphe.util.addEntryValues
 import app.morphe.patches.shared.misc.fix.proto.fixProtoLibraryPatch
 import app.morphe.patches.shared.misc.fix.proto.parseByteArrayMethodRef
 import app.morphe.patches.shared.misc.media.MediaSessionSetMetadataFingerprint
@@ -79,8 +82,54 @@ private val downloadsResourcePatch = resourcePatch {
         addSwitchPreference(CategoryType.MISC, "morphe_music_in_app_downloads", "true")
         addSwitchPreference(CategoryType.MISC, "morphe_music_native_downloads", "true")
         addSwitchPreference(CategoryType.MISC, "morphe_music_downloads_mark", "true", "morphe_music_in_app_downloads")
+        DownloadFormat.entries.forEach {
+            addEntryValues(
+                "morphe_music_download_format_entries",
+                "@string/morphe_music_download_format_entry_${it.name.lowercase()}",
+            )
+            addEntryValues(
+                "morphe_music_download_format_entry_values",
+                it.name,
+            )
+        }
+        DownloadQuality.entries.forEach {
+            addEntryValues(
+                "morphe_music_download_quality_entries",
+                "@string/morphe_music_download_quality_entry_${it.name.lowercase()}",
+            )
+            addEntryValues(
+                "morphe_music_download_quality_entry_values",
+                it.name,
+            )
+        }
+        addListPreference(
+            CategoryType.MISC,
+            "morphe_music_download_format",
+            dependencyKey = "morphe_music_native_downloads",
+        )
+        addListPreference(
+            CategoryType.MISC,
+            "morphe_music_download_quality",
+            dependencyKey = "morphe_music_native_downloads",
+        )
+        addSwitchPreference(
+            CategoryType.MISC,
+            "morphe_music_auto_download_top_tracks",
+            "true",
+            "morphe_music_native_downloads",
+        )
+        addCustomPreference(
+            CategoryType.MISC,
+            "morphe_music_auto_download_top_tracks_count",
+            tag = "app.morphe.extension.shared.settings.preference.SeekBarPreference",
+            dependencyKey = "morphe_music_in_app_downloads",
+        )
     }
 }
+
+private enum class DownloadFormat { OPUS, MP3, MP4 }
+
+private enum class DownloadQuality { LOW, STANDARD, HIGH }
 
 private fun MutableClass.addDownloadsBridge(
     name: String, parameters: List<String>, returnType: String, registers: Int, instructions: String,
