@@ -397,6 +397,8 @@ public class Settings extends SharedYouTubeSettings {
                 8, 96, 4, "dp"));
         SeekBarPreference.register(new SeekBarConfig(NAVIGATION_BAR_GLASS_BOTTOM_SPACING,
                 0, 96, 2, "dp"));
+        SeekBarPreference.register(new SeekBarConfig(AUTO_DOWNLOAD_TOP_TRACKS_COUNT,
+                1, 1_000, 1, "tracks"));
 
         LyricsFilterDefaults.register();
     }
@@ -427,7 +429,7 @@ public class Settings extends SharedYouTubeSettings {
     public static final EnumSetting<DownloadQuality> DOWNLOAD_QUALITY = new EnumSetting<>("morphe_music_download_quality", DownloadQuality.STANDARD, true, parent(NATIVE_DOWNLOADS));
     public static final BooleanSetting AUTO_DOWNLOAD_TOP_TRACKS = new BooleanSetting("morphe_music_auto_download_top_tracks", TRUE, parent(NATIVE_DOWNLOADS));
     public static final IntegerSetting AUTO_DOWNLOAD_TOP_TRACKS_COUNT =
-            new IntegerSetting("morphe_music_auto_download_top_tracks_count", 10, new Setting.SliderConfig(1, 100, 1, "tracks"), parent(AUTO_DOWNLOAD_TOP_TRACKS));
+            new IntegerSetting("morphe_music_auto_download_top_tracks_count", 10, new Setting.SliderConfig(1, 1_000, 1, "tracks"), parent(AUTO_DOWNLOAD_TOP_TRACKS));
     public static final BooleanSetting AUTO_DOWNLOAD_WIFI_ONLY = new BooleanSetting("morphe_music_auto_download_wifi_only", TRUE, parent(AUTO_DOWNLOAD_TOP_TRACKS));
     public static final BooleanSetting SETTINGS_IMPORT_EXPORT = new BooleanSetting("revanced_settings_import_export", FALSE, false);
     public static final BooleanSetting SPOOF_VIDEO_STREAMS_SIGN_IN_ANDROID_VR_ABOUT =
