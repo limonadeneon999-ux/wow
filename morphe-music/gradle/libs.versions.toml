@@ -1,5 +1,6 @@
 [versions]
 junit = "4.13.2"
+mockito = "5.14.2"
 morphe-patcher = "2.3.0"
 smali = "4220ae75f7"
 gson = "2.15.0"
@@ -24,6 +25,7 @@ desugar-jdk-libs = { module = "com.android.tools:desugar_jdk_libs", version.ref 
 gson = { module = "com.google.code.gson:gson", version.ref = "gson" }
 hiddenapi = { module = "org.lsposed.hiddenapibypass:hiddenapibypass", version.ref = "hiddenapi" }
 junit = { module = "junit:junit", version.ref = "junit" }
+mockito-core = { module = "org.mockito:mockito-core", version.ref = "mockito" }
 lang3 = { module = "org.apache.commons:commons-lang3", version.ref = "lang3" }
 okhttp3 = { module = "com.squareup.okhttp3:okhttp", version.ref = "okhttp3" }
 nanohttpd = { module = "org.nanohttpd:nanohttpd", version.ref = "nanohttpd" }

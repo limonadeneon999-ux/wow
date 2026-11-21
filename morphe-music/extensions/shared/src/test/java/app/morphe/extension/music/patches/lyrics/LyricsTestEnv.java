@@ -108,12 +108,7 @@ public final class LyricsTestEnv {
 
         @Override
         public android.content.pm.PackageManager getPackageManager() {
-            try {
-                return (android.content.pm.PackageManager) Class.forName("android.test.mock.MockPackageManager")
-                        .getDeclaredConstructor().newInstance();
-            } catch (ReflectiveOperationException ex) {
-                throw new IllegalStateException("Lyrics JVM tests require the mockable Android test support jar", ex);
-            }
+            return newFakePackageManager();
         }
 
         @Override
@@ -147,6 +142,16 @@ public final class LyricsTestEnv {
         public Resources getResources() {
             return new Resources(null, null, null);
         }
+    }
+
+    /**
+     * Answers "nothing is installed" instead of throwing. Both {@code android.test.mock.MockPackageManager}
+     * and every {@code android.jar} stub throw {@code RuntimeException("Stub!")}, and AGP 9 no longer
+     * generates the mockable jar, so {@code PackageUtils} lookups get an unconfigured mock: every call
+     * returns the return type's default, which reads as "package not installed".
+     */
+    static android.content.pm.PackageManager newFakePackageManager() {
+        return org.mockito.Mockito.mock(android.content.pm.PackageManager.class);
     }
 
     /** In-memory {@link SharedPreferences} with a working {@link FakeEditor}. */
