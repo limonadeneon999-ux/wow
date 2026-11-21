@@ -590,13 +590,34 @@ public final class LocalDownloadManager {
 
         try {
             PlayerResponse response = PlayerResponse.parseFrom(stream.streamingData());
+            // A missing enum (older patched install) must not break downloading.
+            DownloadsConfig.DownloadFormat wanted = Settings.DOWNLOAD_FORMAT.get();
+            if (wanted == null) wanted = DownloadsConfig.DownloadFormat.MP3;
+            DownloadsConfig.DownloadQuality quality = Settings.DOWNLOAD_QUALITY.get();
+            if (quality == null) quality = DownloadsConfig.DownloadQuality.STANDARD;
+            // OPUS keeps the WebM/Opus stream; MP3 and MP4 are both cut from the AAC stream.
+            final boolean wantOpus = wanted == DownloadsConfig.DownloadFormat.OPUS;
+            // MP4 is a passthrough, so its quality is the bitrate of the stream itself.
+            // MP3 is re-encoded by LAME at the chosen bitrate, so it always wants the best source.
+            final boolean passthrough = wanted == DownloadsConfig.DownloadFormat.MP4;
+            final int targetBitrate = quality.bitrateKbps * 1000;
+
+            Comparator<Format> preference = passthrough
+                    ? Comparator.<Format>comparingInt(format ->
+                            Math.abs(format.getBitrate() - targetBitrate))
+                            // On a tie prefer the higher bitrate, so the user never gets the
+                            // worse of two equally distant streams.
+                            .thenComparing(Comparator.comparingInt(Format::getBitrate).reversed())
+                    : Comparator.comparingInt(Format::getBitrate).reversed();
+
             Format best = response.getStreamingData()
                     .getAdaptiveFormatsList()
                     .stream()
                     .filter(format -> format.getMimeType().startsWith("audio/")
                             && AudioTagger.canTag(format.getMimeType())
-                            && !format.getUrl().isBlank())
-                    .max(Comparator.comparingInt(Format::getBitrate))
+                            && !format.getUrl().isBlank()
+                            && AudioTagger.isMp4(format.getMimeType()) != wantOpus)
+                    .min(preference)
                     .orElse(null);
             return best == null ? null : new ResolvedStream(best, response.getVideoDetails());
         } catch (Exception ex) {
