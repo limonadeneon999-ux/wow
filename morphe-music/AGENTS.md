@@ -142,13 +142,92 @@ button inherits this behaviour — no separate code path needed.
 Tests: `StreamSelectionTest` mirrors the filter/comparator and pins all of the above (28 tests total
 across the three downloads test classes).
 
-## Shipping a Java-level change in this sandbox
-Blocked. `maven.pkg.github.com/MorpheApp/registry` answers **401** for the `app.morphe.patches`
-plugin with the available token, so `:patches:build` cannot run and `LocalDownloadManager` cannot be
-recompiled into a DEX here.
+## Shipping a Java-level change in this sandbox — now solved (v5)
 
-The v4 APK was produced by smali-editing the released v3 `classes10.dex`, which only worked because
-that fix was a two-instruction change. A Java-level change like the `parseStream` fix needs either
-the plugin registry, or a manual javac build of the extension against `android.jar` + protobuf +
-jump3r followed by a DEX swap.
+The earlier "blocked" note is obsolete. `:patches:build` still fails (forked patcher API), but the
+Java extension itself compiles fine and the DEX can be swapped in with a **full baksmali/smali round
+trip**. Verified end to end for v5.
 
+Build the extension (works despite the broken `:patches` module):
+
+```sh
+./gradlew :extensions:shared:syncExtension     # NOT :bundle — packageDebugBundle fails on
+                                               # "Version code not found in manifest"
+# -> extensions/shared/build/morphe/extensions/shared.mpe (+ shared2.mpe)
+```
+
+Round trip. The MorpheApp `smali` jar must be paired with the **MorpheApp** `smali-dexlib2`; mixing it
+with the SDK's dexlib2 throws `NoSuchMethodError: ImmutableMethodProtoReference.<init>`. It also needs
+`jcommander 1.82`, `antlr-runtime 3.5.2` and Guava on the classpath, plus the SDK's `smali-util`
+for `com.android.tools.smali.util.jcommander.Command`. The CLI's `--help` path is broken (JCommander
+API drift) but `a`/`d` with arguments work.
+
+```sh
+# jars
+M=~/.gradle/caches/modules-2/files-2.1/com.github.MorpheApp.smali
+# baksmali:  SDK smali-baksmali 3.0.3 + SDK smali-dexlib2 3.0.3 + SDK smali-util 3.0.3
+# smali:     $M/smali + $M/smali-dexlib2 + SDK smali-util 3.0.3
+CP="...:jcommander-1.82.jar:antlr-runtime-3.5.2.jar:guava-33.4.6-jre.jar"
+
+java -cp "$CP" com.android.tools.smali.baksmali.Main d -o sm10 classes10.dex
+cp -a newmpe/app/morphe/extension/music/patches/downloads/. sm10/.../patches/downloads/
+java -Xmx3g -cp "$CP" com.android.tools.smali.smali.Main a -o c10_new.dex sm10
+```
+
+Copy **only** the changed package directories, never the whole new tree: the freshly built `.mpe` is a
+superset (58 classes also live in other DEX files, and duplicate definitions across DEX are a real
+risk). After copying, diff the file lists — the only expected additions were three synthetic lambdas.
+
+Then repack (`zipfile`, preserving entry order/attrs), `zipalign -p 4`, and sign **v2 only**:
+
+```sh
+apksigner sign --ks build/morphe.keystore --ks-pass pass:morphe123 --key-pass pass:morphe123 \
+  --ks-key-alias morphe --v2-signing-enabled true --v3-signing-enabled false \
+  --out ytm_signed_v5.apk ytm_aligned.apk
+```
+
+The keystore password is `morphe123`. Signing with the same key as v4 means v5 **upgrades v4 in place**.
+`ytm_signed_v5.apk` — SHA-256 `7b5a3665be10a5788bb8300281dcd8ab3812b9263477e4c6cdb16bbe9d8b8240`.
+
+Verification that caught nothing this time but is worth repeating: all 10 DEX headers/checksums valid,
+0 unresolved class references, `apksigner verify` OK, `zipalign -c 4` OK, badging unchanged
+(`anddea.youtube.music` 91551240 / 9.15.51), 5816 zip entries CRC-clean.
+
+### Changes in v5 (on top of v4)
+
+1. **`TopTracks` rank logic** — `isInTop`/`rankOf` compared against the *lowest* score in the top set
+   (usually 0), so the "top N" filter matched everything. Now computes the real rank.
+   `autoDownloadCurrentTop` also downloaded N *new* tracks instead of the N most played.
+2. **Main-thread I/O removed** — `LocalDownloadManager.onSetMetadata` runs on the main thread for every
+   track change and called `TopTracks.onTrackPlayed`, which does SharedPreferences reads plus one
+   `openFileDescriptor` per ranked song. Now dispatched to the background pool (ANR risk).
+3. **Permission prompt off the main thread** — added `NativeDownloads.hasStoragePermission()` (silent)
+   and used it on the auto-download/quiet paths, which can run on any thread. `ensureStoragePermission()`
+   (may show a dialog + toast) stays on the main thread for manual downloads.
+
+Tests: 2565 pass (`:extensions:shared:testDebugUnitTest`), including the new `TopTracksTest`.
+
+## v6 — quality actually applies to OPUS (and is a ceiling, not a nearest match)
+
+Found while auditing feature B: `parseStream` treated only MP4 as passthrough, so **OPUS ignored
+the quality setting entirely** and always took the largest opus stream.
+
+The obvious fix ("treat OPUS as passthrough too") is not enough. YouTube only offers a few rungs
+(opus ≈48/70/160 kbps, AAC ≈128/256), and the original comparator was a *nearest bitrate* match.
+A 128 kbps request is equidistant from 48 and 160, so the tie-break picked 160 — meaning LOW and HIGH
+both downloaded the same file. A unit test caught this, not review.
+
+So passthrough now treats the quality as a **ceiling**: take the highest rung that does not exceed the
+target, and fall back to the smallest rung if every rung is above it. MP3 is unchanged — LAME sets the
+output bitrate, so it still always takes the best source. `DownloadsConfig` documents this.
+
+Also in v6: `Collectors` import added, and the three `StreamSelectionTest` expectations that encoded
+the old nearest-match behaviour were rewritten (plus one new case for the all-rungs-above-ceiling
+fallback). Tests: **2568 pass**, 0 failures.
+
+`ytm_signed_v6.apk` — SHA-256 `0a0956395997e5b005457f9d4d9504d5f0988224502b249a9b7a15e5db33ca68`,
+same key as v5, 5816 entries CRC-clean, `classes10.dex` 7 048 116 bytes, 0 unresolved references.
+
+**Not validated at runtime**: this sandbox has `adb` but no emulator image and no device, so the APK is
+verified statically only (signature, alignment, DEX checksums, reference resolution, bytecode inspection
+of `parseStream`). It has not been installed or launched.
