@@ -397,8 +397,6 @@ public class Settings extends SharedYouTubeSettings {
                 8, 96, 4, "dp"));
         SeekBarPreference.register(new SeekBarConfig(NAVIGATION_BAR_GLASS_BOTTOM_SPACING,
                 0, 96, 2, "dp"));
-        SeekBarPreference.register(new SeekBarConfig(AUTO_DOWNLOAD_TOP_TRACKS_COUNT,
-                1, 1_000, 1, "tracks"));
 
         LyricsFilterDefaults.register();
     }
@@ -608,5 +606,12 @@ public class Settings extends SharedYouTubeSettings {
      */
     public static boolean includeWithIntent(@NonNull String dataString) {
         return Utils.containsAny(dataString, intentSettingArray);
+    }
+
+    static {
+        // Registered after the declarations above: a static block that runs before
+        // AUTO_DOWNLOAD_TOP_TRACKS_COUNT is assigned would read null.
+        SeekBarPreference.register(new SeekBarConfig(AUTO_DOWNLOAD_TOP_TRACKS_COUNT,
+                1, 1_000, 1, "tracks"));
     }
 }
