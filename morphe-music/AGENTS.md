@@ -142,6 +142,13 @@ button inherits this behaviour — no separate code path needed.
 Tests: `StreamSelectionTest` mirrors the filter/comparator and pins all of the above (28 tests total
 across the three downloads test classes).
 
+## This sandbox resets: push as you go
+
+`/tmp` and `~/.gradle` are wiped on reset; `/workspace/project` survives. Anything only in `/tmp`
+(baksmali trees, jars, scratch APKs) is gone. Commit **and push** after each change, and keep
+release assets on GitHub rather than only on disk — the v4/v5/v6 APKs now live in releases for
+exactly this reason.
+
 ## Shipping a Java-level change in this sandbox — now solved (v5)
 
 The earlier "blocked" note is obsolete. `:patches:build` still fails (forked patcher API), but the
