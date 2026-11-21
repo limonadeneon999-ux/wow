@@ -149,6 +149,18 @@ across the three downloads test classes).
 release assets on GitHub rather than only on disk — the v4/v5/v6 APKs now live in releases for
 exactly this reason.
 
+## Gradle builds need the MorpheApp plugin, which is not publicly reachable
+
+`:extensions:shared:testDebugUnitTest` needs the `app.morphe.patches` plugin. It is not on Maven
+Central, Gradle Plugin Portal, or JitPack, and `maven.pkg.github.com/MorpheApp/registry` answers 401
+for this token, so **a wiped Gradle cache cannot be rebuilt from scratch here**. `toolchain/m2/plugin.jar`
+is a saved copy of the plugin, but installing it into `~/.m2` by hand is not enough: its POM must also
+declare AGP, and guessing that pulls in a version conflict with the project's Gradle 9.8.2.
+
+Consequence: re-running the unit tests after a reset is not currently possible. The recorded results
+(2568 tests, 0 failures) are from a run that completed *after* the last source edit — see the test
+result XML timestamps against `LocalDownloadManager.java`'s mtime before trusting them.
+
 ## Shipping a Java-level change in this sandbox — now solved (v5)
 
 The earlier "blocked" note is obsolete. `:patches:build` still fails (forked patcher API), but the
@@ -190,7 +202,10 @@ apksigner sign --ks build/morphe.keystore --ks-pass pass:morphe123 --key-pass pa
   --out ytm_signed_v5.apk ytm_aligned.apk
 ```
 
-The keystore password is `morphe123`. Signing with the same key as v4 means v5 **upgrades v4 in place**.
+The keystore password is `morphe123`. Note the releases are **not** signed with one key: v2/v3 use
+`97ae8fd1…`, v4 `53185b47…`, v5/v6 `9c70c674…` (checked with `apksigner verify --print-certs` on the
+downloaded assets). So an in-place update only works v5 -> v6; going to v6 from v2/v3/v4 needs an
+uninstall first.
 `ytm_signed_v5.apk` — SHA-256 `7b5a3665be10a5788bb8300281dcd8ab3812b9263477e4c6cdb16bbe9d8b8240`.
 
 Verification that caught nothing this time but is worth repeating: all 10 DEX headers/checksums valid,
@@ -230,7 +245,8 @@ the old nearest-match behaviour were rewritten (plus one new case for the all-ru
 fallback). Tests: **2568 pass**, 0 failures.
 
 `ytm_signed_v6.apk` — SHA-256 `0a0956395997e5b005457f9d4d9504d5f0988224502b249a9b7a15e5db33ca68`,
-same key as v5, 5816 entries CRC-clean, `classes10.dex` 7 048 116 bytes, 0 unresolved references.
+same key as v5 (so v5 -> v6 updates in place), 5816 entries CRC-clean, `classes10.dex` 7 048 116
+bytes, 0 unresolved references.
 
 **Not validated at runtime**: this sandbox has `adb` but no emulator image and no device, so the APK is
 verified statically only (signature, alignment, DEX checksums, reference resolution, bytecode inspection
