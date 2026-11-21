@@ -10,3 +10,6 @@ local.properties
 captures/
 .externalNativeBuild/
 .cxx/
+
+# dex round-trip jars (downloaded by tools/dex-toolchain.sh)
+.dex-toolchain/

@@ -156,23 +156,20 @@ Build the extension (works despite the broken `:patches` module):
 # -> extensions/shared/build/morphe/extensions/shared.mpe (+ shared2.mpe)
 ```
 
-Round trip. The MorpheApp `smali` jar must be paired with the **MorpheApp** `smali-dexlib2`; mixing it
-with the SDK's dexlib2 throws `NoSuchMethodError: ImmutableMethodProtoReference.<init>`. It also needs
-`jcommander 1.82`, `antlr-runtime 3.5.2` and Guava on the classpath, plus the SDK's `smali-util`
-for `com.android.tools.smali.util.jcommander.Command`. The CLI's `--help` path is broken (JCommander
-API drift) but `a`/`d` with arguments work.
+Round trip: use `tools/dex-toolchain.sh`, which pins a **public** toolchain (org.smali 2.5.2 from
+Maven Central) and downloads it on first use.
 
 ```sh
-# jars
-M=~/.gradle/caches/modules-2/files-2.1/com.github.MorpheApp.smali
-# baksmali:  SDK smali-baksmali 3.0.3 + SDK smali-dexlib2 3.0.3 + SDK smali-util 3.0.3
-# smali:     $M/smali + $M/smali-dexlib2 + SDK smali-util 3.0.3
-CP="...:jcommander-1.82.jar:antlr-runtime-3.5.2.jar:guava-33.4.6-jre.jar"
-
-java -cp "$CP" com.android.tools.smali.baksmali.Main d -o sm10 classes10.dex
-cp -a newmpe/app/morphe/extension/music/patches/downloads/. sm10/.../patches/downloads/
-java -Xmx3g -cp "$CP" com.android.tools.smali.smali.Main a -o c10_new.dex sm10
+export JAVA_HOME=/workspace/project/toolchain/jdk-21.0.13.1+2
+./tools/dex-toolchain.sh d -o sm10 classes10.dex
+cp -a newmpe/app/morphe/extension/music/patches/downloads/. sm10/app/morphe/extension/music/patches/downloads/
+./tools/dex-toolchain.sh a -o c10_new.dex sm10
 ```
+
+Do **not** try to use the MorpheApp smali fork: it lives on a private registry that answers 401 here,
+and the Gradle cache holding it is wiped on sandbox reset. The SDK ships `baksmali` but **not** the
+assembler, so an SDK-only classpath cannot round trip. org.smali 2.5.2 is self-consistent, needs
+`antlr-runtime 3.5.2` + Guava at runtime, and reads/writes the same dex 035 format as the APK.
 
 Copy **only** the changed package directories, never the whole new tree: the freshly built `.mpe` is a
 superset (58 classes also live in other DEX files, and duplicate definitions across DEX are a real
