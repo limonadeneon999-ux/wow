@@ -58,6 +58,12 @@ public final class TopTracks {
 
     private static void maybeAutoDownload(SharedPreferences prefs, String videoId, double score) {
         if (!isInTop(prefs, videoId, score)) return;
+        // Auto-download runs off the main thread, so it must never trigger a permission
+        // prompt: skip silently and let the next manual download ask for it.
+        if (!NativeDownloads.hasStoragePermission()) {
+            Logger.printDebug(() -> "Skipping auto-download: no storage permission");
+            return;
+        }
         if (Settings.AUTO_DOWNLOAD_WIFI_ONLY.get() && !isOnWifi()) {
             Logger.printDebug(() -> "Skipping auto-download: not on Wi-Fi");
             return;
@@ -85,31 +91,42 @@ public final class TopTracks {
             if (s > 0) ranked.add(new java.util.AbstractMap.SimpleEntry<>(id, s));
         }
         ranked.sort((a, b) -> Double.compare(b.getValue(), a.getValue()));
-        int downloaded = 0;
+        // The limit applies to the top N overall, not to N new downloads: a user with
+        // 5 of the top 10 already saved gets 5 more, not 10.
+        int rank = 0;
         for (java.util.Map.Entry<String, Double> entry : ranked) {
-            if (downloaded >= limit) break;
+            if (rank++ >= limit) break;
             String id = entry.getKey();
             if (NativeAudioStore.find(id) != null) continue;
             LocalDownloadManager.enqueueQuietly(id);
-            downloaded++;
         }
     }
 
-    /** A song is most-played while its current score beats the lowest top-score. */
+    /** A song is most-played while its rank among the others is inside the top N. */
     private static boolean isInTop(SharedPreferences prefs, String videoId, double score) {
         int limit = Settings.AUTO_DOWNLOAD_TOP_TRACKS_COUNT.get();
         if (limit <= 0) return false;
         long now = System.currentTimeMillis();
-        double lowest = Double.MAX_VALUE;
-        int entries = 0;
+        java.util.List<Double> others = new java.util.ArrayList<>();
         for (String key : prefs.getAll().keySet()) {
             if (!key.startsWith(KEY_COUNT_PREFIX) || key.equals(KEY_COUNT_PREFIX + videoId)) continue;
             long last = prefs.getLong(KEY_LAST_PREFIX + key.substring(KEY_COUNT_PREFIX.length()), 0L);
-            double s = decay(prefs.getFloat(key, 0f), last, now);
-            if (s > 0) entries++;
-            if (s < lowest) lowest = s;
+            others.add(decay(prefs.getFloat(key, 0f), last, now));
         }
-        return entries < limit || score >= lowest;
+        return rankOf(others, score) < limit;
+    }
+
+    /**
+     * Zero-based rank of {@code score} among {@code otherScores}: how many other songs
+     * score strictly higher. Decayed-to-zero entries count too, otherwise a stale
+     * library would make every play look like a top-N song.
+     */
+    static int rankOf(java.util.List<Double> otherScores, double score) {
+        int higher = 0;
+        for (double other : otherScores) {
+            if (other > score) higher++;
+        }
+        return higher;
     }
 
     /** Exponential decay: score halves every {@link #HALF_LIFE_MS}. */

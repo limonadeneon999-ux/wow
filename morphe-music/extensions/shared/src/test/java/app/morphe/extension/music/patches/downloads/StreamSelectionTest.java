@@ -19,7 +19,8 @@ import java.util.stream.Collectors;
  * Stream picking for {@link LocalDownloadManager}.
  *
  * <p>Mirrors the filter/comparator of {@code parseStream}: the chosen format decides the
- * container, and only MP4 is a passthrough where the requested quality selects the stream.
+ * container. OPUS and MP4 are passthrough, so the requested quality selects the stream;
+ * MP3 is re-encoded by LAME and always takes the best source.
  */
 public class StreamSelectionTest {
 
@@ -33,27 +34,57 @@ public class StreamSelectionTest {
             new Stream("audio/mp4; codecs=\"mp4a.40.2\"", 48_000));
 
     private static Stream select(DownloadsConfig.DownloadFormat wanted, int qualityKbps) {
+        return selectFrom(YOUTUBE_AUDIO, wanted, qualityKbps);
+    }
+
+    private static Stream selectFrom(List<Stream> streams, DownloadsConfig.DownloadFormat wanted, int qualityKbps) {
         boolean wantOpus = wanted == DownloadsConfig.DownloadFormat.OPUS;
-        boolean passthrough = wanted == DownloadsConfig.DownloadFormat.MP4;
+        boolean passthrough = wanted != DownloadsConfig.DownloadFormat.MP3;
         int targetBitrate = qualityKbps * 1000;
 
-        Comparator<Stream> preference = passthrough
-                ? Comparator.<Stream>comparingInt(stream -> Math.abs(stream.bitrate() - targetBitrate))
-                        .thenComparing(Comparator.comparingInt(Stream::bitrate).reversed())
-                : Comparator.comparingInt(Stream::bitrate).reversed();
-
-        return YOUTUBE_AUDIO.stream()
+        List<Stream> candidates = streams.stream()
                 .filter(stream -> stream.mimeType().startsWith("audio/")
                         && AudioTagger.canTag(stream.mimeType())
                         && (AudioTagger.isMp4(stream.mimeType()) != wantOpus))
-                .min(preference)
-                .orElse(null);
+                .collect(Collectors.toList());
+
+        if (!passthrough) {
+            return candidates.stream()
+                    .max(Comparator.comparingInt(Stream::bitrate))
+                    .orElse(null);
+        }
+        return candidates.stream()
+                .filter(stream -> stream.bitrate() <= targetBitrate)
+                .max(Comparator.comparingInt(Stream::bitrate))
+                .orElseGet(() -> candidates.stream()
+                        .min(Comparator.comparingInt(Stream::bitrate))
+                        .orElse(null));
     }
 
     @Test
     public void opusFormatTakesTheOpusStream() {
         Stream chosen = select(DownloadsConfig.DownloadFormat.OPUS, 320);
         assertEquals("audio/webm; codecs=\"opus\"", chosen.mimeType());
+    }
+
+    @Test
+    public void opusPassthroughHonoursTheRequestedQuality() {
+        // Opus is copied, not re-encoded, so LOW must really pick the small opus stream
+        // instead of always taking the largest one.
+        List<Stream> opusStreams = List.of(
+                new Stream("audio/webm; codecs=\"opus\"", 48_000),
+                new Stream("audio/webm; codecs=\"opus\"", 160_000));
+        assertEquals(48_000, selectFrom(opusStreams, DownloadsConfig.DownloadFormat.OPUS, 128).bitrate());
+        assertEquals(160_000, selectFrom(opusStreams, DownloadsConfig.DownloadFormat.OPUS, 320).bitrate());
+    }
+
+    @Test
+    public void mp3StillIgnoresQualityAndTakesTheBestSource() {
+        // LAME sets the output bitrate, so a low quality must not downgrade the source.
+        List<Stream> opusStreams = List.of(
+                new Stream("audio/webm; codecs=\"opus\"", 48_000),
+                new Stream("audio/webm; codecs=\"opus\"", 160_000));
+        assertNull(selectFrom(opusStreams, DownloadsConfig.DownloadFormat.MP3, 128));
     }
 
     @Test
@@ -81,9 +112,15 @@ public class StreamSelectionTest {
     }
 
     @Test
-    public void mp4PicksTheNearestBitrateWhenTheExactOneIsMissing() {
-        // 192 kbps is not offered; 256 is closer than 128.
-        assertEquals(256_000, select(DownloadsConfig.DownloadFormat.MP4, 192).bitrate());
+    public void mp4QualityIsACeilingSoLowNeverUpscales() {
+        // 192 kbps is not offered: the ceiling takes the best rung that does not exceed it.
+        assertEquals(128_000, select(DownloadsConfig.DownloadFormat.MP4, 192).bitrate());
+    }
+
+    @Test
+    public void mp4FallsBackToTheSmallestRungWhenEveryStreamIsAboveTheCeiling() {
+        // No AAC rung is under 48 kbps, so LOW still has to return something playable.
+        assertEquals(48_000, select(DownloadsConfig.DownloadFormat.MP4, 40).bitrate());
     }
 
     @Test

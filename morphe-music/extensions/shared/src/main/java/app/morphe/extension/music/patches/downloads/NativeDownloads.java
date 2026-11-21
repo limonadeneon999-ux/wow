@@ -41,9 +41,15 @@ public final class NativeDownloads {
 
     private NativeDownloads() {}
 
+    /** Silent check: never prompts, so it is safe to call off the main thread. */
+    static boolean hasStoragePermission() {
+        return Build.VERSION.SDK_INT >= 29 || Utils.getContext().checkSelfPermission(
+                Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED;
+    }
+
+    /** Must be called from the main thread: it may show a permission dialog and a toast. */
     static boolean ensureStoragePermission() {
-        if (Build.VERSION.SDK_INT >= 29 || Utils.getContext().checkSelfPermission(
-                Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED) return true;
+        if (hasStoragePermission()) return true;
         Activity activity = Utils.getActivity();
         if (activity != null) activity.requestPermissions(new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, 20842);
         Utils.showToastLong(str("morphe_music_downloads_storage_permission"));

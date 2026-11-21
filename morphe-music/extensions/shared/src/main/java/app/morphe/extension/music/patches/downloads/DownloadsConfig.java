@@ -7,8 +7,13 @@ package app.morphe.extension.music.patches.downloads;
  * <ul>
  *   <li>{@link DownloadFormat#OPUS} keeps the opus stream as Ogg Opus (smallest);
  *   <li>{@link DownloadFormat#MP3} transcodes to a true MP3 file (maximum compatibility);
- *   <li>{@link DownloadFormat#MP4} keeps the high bitrate AAC stream in an MP4 container.
+ *   <li>{@link DownloadFormat#MP4} keeps the AAC stream in an MP4 container.
  * </ul>
+ *
+ * <p>{@link DownloadFormat#OPUS} and {@link DownloadFormat#MP4} copy the stream as-is, so the
+ * file keeps the stream's own bitrate and {@link DownloadQuality} acts as a ceiling: the highest
+ * offered rung that does not exceed it. {@link DownloadFormat#MP3} re-encodes with LAME at the
+ * chosen bitrate, so it always downloads the best available source.
  */
 public final class DownloadsConfig {
 

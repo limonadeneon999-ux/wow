@@ -40,6 +40,7 @@ import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import app.morphe.extension.music.patches.spoof.SpoofVideoStreamsPatch;
 import app.morphe.extension.music.settings.Settings;
@@ -96,8 +97,15 @@ public final class LocalDownloadManager {
         if (metadata == null) return;
         currentTitle = metadata.getString(android.media.MediaMetadata.METADATA_KEY_TITLE);
         currentArtist = metadata.getString(android.media.MediaMetadata.METADATA_KEY_ARTIST);
-        TopTracks.onTrackPlayed(app.morphe.extension.music.shared.VideoInformation.getVideoId(),
-                currentTitle, currentArtist);
+        // Runs on the main thread for every track change, while scoring a play touches
+        // SharedPreferences plus one openFileDescriptor per ranked song.
+        final String title = currentTitle;
+        final String artist = currentArtist;
+        final String videoId = app.morphe.extension.music.shared.VideoInformation.getVideoId();
+        Utils.submitOnBackgroundThread(() -> {
+            TopTracks.onTrackPlayed(videoId, title, artist);
+            return null;
+        });
     }
 
     private LocalDownloadManager() {
@@ -118,7 +126,9 @@ public final class LocalDownloadManager {
             if (!quiet) Utils.showToastShort(str("morphe_music_downloads_unknown_track"));
             return;
         }
-        if (!NativeDownloads.ensureStoragePermission()) return;
+        // A manual download starts on the main thread and may prompt for storage; a quiet
+        // auto-download can start from any thread and must only check.
+        if (quiet ? !NativeDownloads.hasStoragePermission() : !NativeDownloads.ensureStoragePermission()) return;
         if (ACTIVE_DOWNLOADS.containsKey(videoId)) return;
         Utils.submitOnBackgroundThread(() -> {
             try {
@@ -597,28 +607,37 @@ public final class LocalDownloadManager {
             if (quality == null) quality = DownloadsConfig.DownloadQuality.STANDARD;
             // OPUS keeps the WebM/Opus stream; MP3 and MP4 are both cut from the AAC stream.
             final boolean wantOpus = wanted == DownloadsConfig.DownloadFormat.OPUS;
-            // MP4 is a passthrough, so its quality is the bitrate of the stream itself.
-            // MP3 is re-encoded by LAME at the chosen bitrate, so it always wants the best source.
-            final boolean passthrough = wanted == DownloadsConfig.DownloadFormat.MP4;
+            // OPUS and MP4 are passthrough: the file keeps the stream's own bitrate, so the
+            // quality acts as a ceiling. MP3 is re-encoded by LAME at the chosen bitrate and
+            // always wants the best source.
+            final boolean passthrough = wanted != DownloadsConfig.DownloadFormat.MP3;
             final int targetBitrate = quality.bitrateKbps * 1000;
 
-            Comparator<Format> preference = passthrough
-                    ? Comparator.<Format>comparingInt(format ->
-                            Math.abs(format.getBitrate() - targetBitrate))
-                            // On a tie prefer the higher bitrate, so the user never gets the
-                            // worse of two equally distant streams.
-                            .thenComparing(Comparator.comparingInt(Format::getBitrate).reversed())
-                    : Comparator.comparingInt(Format::getBitrate).reversed();
-
-            Format best = response.getStreamingData()
+            List<Format> candidates = response.getStreamingData()
                     .getAdaptiveFormatsList()
                     .stream()
                     .filter(format -> format.getMimeType().startsWith("audio/")
                             && AudioTagger.canTag(format.getMimeType())
                             && !format.getUrl().isBlank()
                             && AudioTagger.isMp4(format.getMimeType()) != wantOpus)
-                    .min(preference)
-                    .orElse(null);
+                    .collect(Collectors.toList());
+
+            Format best;
+            if (passthrough) {
+                // YouTube only offers a few rungs (opus ~48/70/160, AAC ~128/256). Nearest-match
+                // would pick the same rung for every quality, so LOW must really cap the bitrate.
+                best = candidates.stream()
+                        .filter(format -> format.getBitrate() <= targetBitrate)
+                        .max(Comparator.comparingInt(Format::getBitrate))
+                        // Every rung is above the ceiling: fall back to the smallest one.
+                        .orElseGet(() -> candidates.stream()
+                                .min(Comparator.comparingInt(Format::getBitrate))
+                                .orElse(null));
+            } else {
+                best = candidates.stream()
+                        .max(Comparator.comparingInt(Format::getBitrate))
+                        .orElse(null);
+            }
             return best == null ? null : new ResolvedStream(best, response.getVideoDetails());
         } catch (Exception ex) {
             Logger.printException(() -> "Could not parse audio formats: " + videoId, ex);
