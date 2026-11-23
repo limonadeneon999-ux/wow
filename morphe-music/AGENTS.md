@@ -265,6 +265,22 @@ does not. `apksigner` is a shell wrapper that needs `java` on `PATH`, not just `
 `ytm_ultimate_v7.apk` — SHA-256 `83662c11b446a4e6bd0d42cad4ad65c7923799e44a5e2ba9695af85d5d6c6c01`,
 86 525 396 bytes, same `9c70c674…` signer as v5/v6.
 
+### Changes in v8 (on top of v7)
+
+v7's orphan sweep was itself a bug: it ran at the start of *every* download and deleted *every*
+`rvx-audio-*.part` in the cache. Auto-downloads are serialised, but a manual download still runs on
+the shared pool, so an auto-download starting while a manual one was in flight deleted the manual
+transfer's temp file mid-write. Live temp files are now tracked in `LIVE_TEMPORARY_FILES` and skipped,
+and the sweep runs at most once per process via `SWEPT_ORPHANS`. Anything that creates or releases a
+`rvx-audio-*.part` must update that set — there are three sites: creation, the `finally`, and the
+`ForbiddenException` retry.
+
+Lesson worth keeping: a cleanup routine that deletes by filename pattern must be able to tell a live
+file from a dead one. Serialising one code path does not serialise the other.
+
+`ytm_ultimate_v8.apk` — SHA-256 `6ed81eb0d72ba253f99ce6becb03533ac2f5d952c3dd04b95a0a0369c0399d49`,
+86 525 396 bytes.
+
 **What "tested" means here.** Gradle cannot run, so `./gradlew test` is unavailable. The JUnit tests
 were executed by compiling `TopTracksTest` against the real `TopTracks.class` with a 20-line local
 `org.junit` stub and running it reflectively: 10/10 pass. Nothing was installed on a device, so
