@@ -64,7 +64,7 @@ public final class TopTracks {
             Logger.printDebug(() -> "Skipping auto-download: no storage permission");
             return;
         }
-        if (Settings.AUTO_DOWNLOAD_WIFI_ONLY.get() && !isOnWifi()) {
+        if (!isAutoDownloadAllowed()) {
             Logger.printDebug(() -> "Skipping auto-download: not on Wi-Fi");
             return;
         }
@@ -106,6 +106,9 @@ public final class TopTracks {
     private static boolean isInTop(SharedPreferences prefs, String videoId, double score) {
         int limit = Settings.AUTO_DOWNLOAD_TOP_TRACKS_COUNT.get();
         if (limit <= 0) return false;
+        // A zero score means "never played recently". rankOf would give it rank 0 when every
+        // neighbour is also zero, so it has to be rejected before ranking.
+        if (score <= 0.0) return false;
         long now = System.currentTimeMillis();
         java.util.List<Double> others = new java.util.ArrayList<>();
         for (String key : prefs.getAll().keySet()) {
@@ -136,8 +139,11 @@ public final class TopTracks {
         return score * Math.pow(0.5, (double) age / HALF_LIFE_MS);
     }
 
-    /** True when the device is connected to a Wi-Fi network with internet. */
-    private static boolean isOnWifi() {
+    /**
+     * True when the active network is Wi-Fi and unmetered. A phone hotspot counts as Wi-Fi
+     * by transport but is metered, so transport alone is not enough to honour the setting.
+     */
+    static boolean isOnWifi() {
         try {
             ConnectivityManager cm = (ConnectivityManager)
                     Utils.getContext().getSystemService(Context.CONNECTIVITY_SERVICE);
@@ -145,11 +151,22 @@ public final class TopTracks {
             android.net.Network network = cm.getActiveNetwork();
             if (network == null) return false;
             NetworkCapabilities caps = cm.getNetworkCapabilities(network);
-            return caps != null && caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI);
+            return caps != null
+                    && caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
+                    && caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED);
         } catch (Exception ex) {
             Logger.printException(() -> "TopTracks WiFi check failure", ex);
             return false;
         }
+    }
+
+    /**
+     * Wi-Fi gate re-checked at transfer time. The setting is sampled when the song is queued,
+     * but a queue of several songs can outlive the Wi-Fi connection, so the download itself
+     * has to ask again instead of trusting the enqueue-time answer.
+     */
+    static boolean isAutoDownloadAllowed() {
+        return !Settings.AUTO_DOWNLOAD_WIFI_ONLY.get() || isOnWifi();
     }
 
     private static SharedPreferences prefs() {

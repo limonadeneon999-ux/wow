@@ -83,4 +83,32 @@ public class TopTracksTest {
     public void higherNeighbourOutranksAFreshPlay() {
         assertEquals(1, TopTracks.rankOf(scores(0.6), 0.4));
     }
+
+    /**
+     * Guards the direction of the ranking. A descending sort puts the highest score at rank 0;
+     * an ascending one would invert this and pick the least played songs instead.
+     */
+    @Test
+    public void highestScoreRanksFirst() {
+        assertEquals(0, TopTracks.rankOf(scores(80.0, 60.0, 40.0), 100.0));
+        assertEquals(1, TopTracks.rankOf(scores(100.0, 60.0, 40.0), 80.0));
+        assertEquals(3, TopTracks.rankOf(scores(100.0, 80.0, 60.0), 40.0));
+    }
+
+    /** With distinct scores a top-2 selection must keep exactly the two highest. */
+    @Test
+    public void topTwoKeepsTheTwoHighestScores() {
+        List<Double> all = scores(100.0, 80.0, 60.0, 40.0);
+        int limit = 2;
+        assertTrue("100 is in the top 2", TopTracks.rankOf(others(all, 100.0), 100.0) < limit);
+        assertTrue("80 is in the top 2", TopTracks.rankOf(others(all, 80.0), 80.0) < limit);
+        assertFalse("60 is not in the top 2", TopTracks.rankOf(others(all, 60.0), 60.0) < limit);
+        assertFalse("40 is not in the top 2", TopTracks.rankOf(others(all, 40.0), 40.0) < limit);
+    }
+
+    private static List<Double> others(List<Double> all, double score) {
+        List<Double> rest = new java.util.ArrayList<>(all);
+        rest.remove(Double.valueOf(score));
+        return rest;
+    }
 }

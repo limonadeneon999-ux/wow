@@ -93,6 +93,22 @@ public final class LocalDownloadManager {
     private static volatile String currentTitle;
     private static volatile String currentArtist;
 
+    /** Last song already scored, so repeat metadata updates for one song count as one play. */
+    private static volatile String lastScoredVideoId;
+
+    /**
+     * Single thread so two rapid track changes cannot interleave their read-modify-write
+     * of the play counters, which would lose an increment.
+     */
+    private static final ExecutorService PLAY_SCORING_THREAD = Executors.newSingleThreadExecutor();
+
+    /**
+     * Auto-downloads run one at a time. Each one already opens {@link #MAX_CONNECTIONS}
+     * sockets and an encoder, so running the whole top-N list in parallel is what melts
+     * the device. A manual download is unaffected and uses the shared pool.
+     */
+    private static final ExecutorService AUTO_DOWNLOAD_THREAD = Executors.newSingleThreadExecutor();
+
     public static void onSetMetadata(android.media.MediaMetadata metadata) {
         if (metadata == null) return;
         currentTitle = metadata.getString(android.media.MediaMetadata.METADATA_KEY_TITLE);
@@ -102,9 +118,12 @@ public final class LocalDownloadManager {
         final String title = currentTitle;
         final String artist = currentArtist;
         final String videoId = app.morphe.extension.music.shared.VideoInformation.getVideoId();
-        Utils.submitOnBackgroundThread(() -> {
+        // MediaSession republishes metadata several times per song (title first, then
+        // artwork, then duration). Scoring each update would multiply one play by three.
+        if (videoId == null || videoId.equals(lastScoredVideoId)) return;
+        lastScoredVideoId = videoId;
+        PLAY_SCORING_THREAD.execute(() -> {
             TopTracks.onTrackPlayed(videoId, title, artist);
-            return null;
         });
     }
 
@@ -130,23 +149,45 @@ public final class LocalDownloadManager {
         // auto-download can start from any thread and must only check.
         if (quiet ? !NativeDownloads.hasStoragePermission() : !NativeDownloads.ensureStoragePermission()) return;
         if (ACTIVE_DOWNLOADS.containsKey(videoId)) return;
-        Utils.submitOnBackgroundThread(() -> {
-            try {
-                NativeDownloads.migrateLegacy();
-                if (NativeAudioStore.find(videoId) != null) return null;
-                if (!quiet) Utils.showToastShort(str("morphe_music_downloads_started"));
-                download(videoId);
-                if (!quiet) Utils.showToastShort(str("morphe_music_downloads_complete"));
-                NativePlaylistStore.refreshUnsortedLater(); // list the new single.
-            } catch (Exception ex) {
-                Logger.printException(() -> "Local audio download failed: " + videoId, ex);
-                if (!quiet) Utils.showToastShort(str("morphe_music_downloads_failed"));
-            }
-            return null;
-        });
+        // An auto-download catch-up can queue hundreds of songs. Each one opens up to
+        // MAX_CONNECTIONS sockets and a LAME/MediaCodec encode, so running them on the
+        // unbounded shared pool exhausts memory and gets the account throttled by 403/429.
+        // Manual downloads keep the shared pool: the user asked for exactly one.
+        if (quiet) {
+            AUTO_DOWNLOAD_THREAD.execute(() -> runDownload(videoId, true));
+        } else {
+            Utils.submitOnBackgroundThread(() -> {
+                runDownload(videoId, false);
+                return null;
+            });
+        }
+    }
+
+    private static void runDownload(String videoId, boolean quiet) {
+        try {
+            NativeDownloads.migrateLegacy();
+            sweepOrphanedTemporaryFiles();
+            if (NativeAudioStore.find(videoId) != null) return;
+            if (!quiet) Utils.showToastShort(str("morphe_music_downloads_started"));
+            download(videoId, quiet);
+            if (!quiet) Utils.showToastShort(str("morphe_music_downloads_complete"));
+            NativePlaylistStore.refreshUnsortedLater(); // list the new single.
+        } catch (Exception ex) {
+            Logger.printException(() -> "Local audio download failed: " + videoId, ex);
+            if (!quiet) Utils.showToastShort(str("morphe_music_downloads_failed"));
+        }
     }
 
     static Uri download(String videoId) throws Exception {
+        return download(videoId, false);
+    }
+
+    /**
+     * @param requireWifi re-check the Wi-Fi-only setting before every network request, so a
+     *                    queue that outlives the Wi-Fi connection stops instead of switching
+     *                    to mobile data.
+     */
+    static Uri download(String videoId, boolean requireWifi) throws Exception {
         Utils.verifyOffMainThread();
         if (!VIDEO_ID.matcher(videoId).matches()) throw new IOException("Invalid video id");
         Uri saved = NativeAudioStore.find(videoId);
@@ -154,7 +195,8 @@ public final class LocalDownloadManager {
         boolean playing = videoId.equals(VideoInformation.getVideoId());
         String title = playing ? currentTitle : null;
         String artist = playing ? currentArtist : null;
-        FutureTask<Uri> task = new FutureTask<>(() -> downloadBlocking(videoId, title, artist));
+        FutureTask<Uri> task = new FutureTask<>(
+                () -> downloadBlocking(videoId, title, artist, requireWifi));
         FutureTask<Uri> existing = ACTIVE_DOWNLOADS.putIfAbsent(videoId, task);
         if (existing == null) task.run();
         try {
@@ -167,9 +209,30 @@ public final class LocalDownloadManager {
         }
     }
 
+    /**
+     * Deletes temporary files left behind by a crash or a system kill. Ordinary failures clean
+     * up in a finally block, but a killed process leaves a full-size preallocated .part file in
+     * the cache directory forever.
+     */
+    private static void sweepOrphanedTemporaryFiles() {
+        try {
+            File[] orphans = Utils.getContext().getCacheDir()
+                    .listFiles((dir, name) -> name.startsWith("rvx-audio-") && name.endsWith(".part"));
+            if (orphans == null) return;
+            for (File orphan : orphans) {
+                if (orphan.delete()) {
+                    Logger.printDebug(() -> "Deleted orphaned temporary file: " + orphan.getName());
+                }
+            }
+        } catch (Exception ex) {
+            Logger.printDebug(() -> "Could not sweep temporary files", ex);
+        }
+    }
+
     // the stream is downloaded to a private temporary file and
     // published with embedded tags, since Music's device-files library reads metadata only from the file.
-    private static Uri downloadBlocking(String videoId, String title, String artist) throws Exception {
+    private static Uri downloadBlocking(String videoId, String title, String artist,
+                                        boolean requireWifi) throws Exception {
         NativeAudioStore.Destination destination = null;
         File temporary = null;
         try {
@@ -191,7 +254,7 @@ public final class LocalDownloadManager {
                     // Keep the existing bounded parallel range/resume downloader.
                     downloadWithResume(videoId, title, format.getUrl(),
                             new NativeAudioStore.Destination(null, temporary, format.getMimeType()),
-                            format.getContentLength());
+                            format.getContentLength(), requireWifi);
                     break;
                 } catch (ForbiddenException ex) {
                     temporary.delete();
@@ -306,14 +369,15 @@ public final class LocalDownloadManager {
 
 
     private static void downloadWithResume(String videoId, String title, String url,
-                                           NativeAudioStore.Destination temporary, long expectedLength) throws Exception {
+                                           NativeAudioStore.Destination temporary, long expectedLength,
+                                           boolean requireWifi) throws Exception {
         if (expectedLength <= 0) expectedLength = probeContentLength(url);
         final long totalLength = expectedLength;
 
         if (totalLength <= 0) {
-            downloadUnknownLength(url, temporary);
+            downloadUnknownLength(url, temporary, requireWifi);
         } else {
-            downloadInParallel(videoId, title, url, temporary, totalLength);
+            downloadInParallel(videoId, title, url, temporary, totalLength, requireWifi);
         }
 
         if (totalLength > 0) {
@@ -327,7 +391,8 @@ public final class LocalDownloadManager {
     // bounded ranges are handed out from a shared queue to a
     // capped worker pool; the first failure stops every connection immediately.
     private static void downloadInParallel(String videoId, String title, String url,
-                                           NativeAudioStore.Destination temporary, long totalLength) throws Exception {
+                                           NativeAudioStore.Destination temporary, long totalLength,
+                                           boolean requireWifi) throws Exception {
         temporary.setLength(totalLength);
 
         AtomicLong downloaded = new AtomicLong();
@@ -342,7 +407,8 @@ public final class LocalDownloadManager {
         long rangeSize = Math.min(MAX_RANGE_SIZE, (totalLength + SEGMENT_COUNT - 1) / SEGMENT_COUNT);
         long rangeCount = (totalLength + rangeSize - 1) / rangeSize;
         int workers = (int) Math.min(MAX_CONNECTIONS, rangeCount);
-        RangeQueue queue = new RangeQueue(url, temporary, totalLength, rangeSize, downloaded, progress);
+        RangeQueue queue = new RangeQueue(url, temporary, totalLength, rangeSize, downloaded,
+                progress, requireWifi);
 
         // Android's ExecutorService is not AutoCloseable, so it is shut down in the finally below.
         //noinspection resource
@@ -392,16 +458,18 @@ public final class LocalDownloadManager {
         private final ProgressCallback progress;
         private final AtomicLong nextStart = new AtomicLong();
         private final Set<HttpURLConnection> connections = ConcurrentHashMap.newKeySet();
+        private final boolean requireWifi;
         private volatile boolean stopped;
 
         RangeQueue(String url, NativeAudioStore.Destination destination, long totalLength, long rangeSize,
-                   AtomicLong downloaded, ProgressCallback progress) {
+                   AtomicLong downloaded, ProgressCallback progress, boolean requireWifi) {
             this.url = url;
             this.destination = destination;
             this.totalLength = totalLength;
             this.rangeSize = rangeSize;
             this.downloaded = downloaded;
             this.progress = progress;
+            this.requireWifi = requireWifi;
         }
 
         /** Aborts every connection, so blocked reads fail at once instead of timing out. */
@@ -428,6 +496,13 @@ public final class LocalDownloadManager {
 
         private void checkStopped() {
             if (stopped) throw new CancellationException("Download stopped");
+            // Checked per range rather than once at enqueue time: a long download can outlive
+            // the Wi-Fi connection, and switching to mobile data is exactly what the setting
+            // exists to prevent.
+            if (requireWifi && !TopTracks.isOnWifi()) {
+                stop();
+                throw new CancellationException("Wi-Fi connection lost");
+            }
         }
 
         private void downloadRange(long start, long end, FileOutputStream output,
@@ -527,11 +602,15 @@ public final class LocalDownloadManager {
         return connection;
     }
 
-    private static void downloadUnknownLength(String url, NativeAudioStore.Destination destination) throws Exception {
+    private static void downloadUnknownLength(String url, NativeAudioStore.Destination destination,
+                                              boolean requireWifi) throws Exception {
+        if (requireWifi && !TopTracks.isOnWifi()) throw new IllegalStateException("Wi-Fi connection lost");
         HttpURLConnection connection = Requester.openConnection(url);
         connection.setConnectTimeout(CONNECT_TIMEOUT_MILLISECONDS);
         connection.setReadTimeout(READ_TIMEOUT_MILLISECONDS);
+        connection.setInstanceFollowRedirects(true);
         connection.setRequestProperty("User-Agent", USER_AGENT);
+        connection.setRequestProperty("Referer", "https://music.youtube.com/");
 
         try {
             if (connection.getResponseCode() == HttpURLConnection.HTTP_FORBIDDEN) {
@@ -619,6 +698,8 @@ public final class LocalDownloadManager {
                     .filter(format -> format.getMimeType().startsWith("audio/")
                             && AudioTagger.canTag(format.getMimeType())
                             && !format.getUrl().isBlank()
+                            // A malformed entry reporting 0 would pass the ceiling below.
+                            && format.getBitrate() > 0
                             && AudioTagger.isMp4(format.getMimeType()) != wantOpus)
                     .collect(Collectors.toList());
 
