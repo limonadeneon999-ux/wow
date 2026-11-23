@@ -109,6 +109,15 @@ public final class LocalDownloadManager {
      */
     private static final ExecutorService AUTO_DOWNLOAD_THREAD = Executors.newSingleThreadExecutor();
 
+    /**
+     * Temporary files a download is currently writing. The orphan sweep must not touch these:
+     * auto-downloads are serialised but a manual one runs on the shared pool at the same time,
+     * so a sweep that deleted every matching file would destroy a live transfer.
+     */
+    private static final Set<File> LIVE_TEMPORARY_FILES = ConcurrentHashMap.newKeySet();
+
+    private static final java.util.concurrent.atomic.AtomicBoolean SWEPT_ORPHANS = new java.util.concurrent.atomic.AtomicBoolean();
+
     public static void onSetMetadata(android.media.MediaMetadata metadata) {
         if (metadata == null) return;
         currentTitle = metadata.getString(android.media.MediaMetadata.METADATA_KEY_TITLE);
@@ -213,13 +222,19 @@ public final class LocalDownloadManager {
      * Deletes temporary files left behind by a crash or a system kill. Ordinary failures clean
      * up in a finally block, but a killed process leaves a full-size preallocated .part file in
      * the cache directory forever.
+     *
+     * <p>Runs at most once per process, and never removes a file a download is still writing.
+     * Two downloads can be live at once (one manual on the shared pool, one automatic on
+     * {@link #AUTO_DOWNLOAD_THREAD}), so a blind sweep would delete a live transfer.
      */
     private static void sweepOrphanedTemporaryFiles() {
+        if (!SWEPT_ORPHANS.compareAndSet(false, true)) return;
         try {
-            File[] orphans = Utils.getContext().getCacheDir()
+            File[] candidates = Utils.getContext().getCacheDir()
                     .listFiles((dir, name) -> name.startsWith("rvx-audio-") && name.endsWith(".part"));
-            if (orphans == null) return;
-            for (File orphan : orphans) {
+            if (candidates == null) return;
+            for (File orphan : candidates) {
+                if (LIVE_TEMPORARY_FILES.contains(orphan)) continue;
                 if (orphan.delete()) {
                     Logger.printDebug(() -> "Deleted orphaned temporary file: " + orphan.getName());
                 }
@@ -250,6 +265,7 @@ public final class LocalDownloadManager {
             while (true) {
                 format = resolved.format();
                 temporary = File.createTempFile("rvx-audio-", ".part", Utils.getContext().getCacheDir());
+                LIVE_TEMPORARY_FILES.add(temporary);
                 try {
                     // Keep the existing bounded parallel range/resume downloader.
                     downloadWithResume(videoId, title, format.getUrl(),
@@ -257,6 +273,7 @@ public final class LocalDownloadManager {
                             format.getContentLength(), requireWifi);
                     break;
                 } catch (ForbiddenException ex) {
+                    LIVE_TEMPORARY_FILES.remove(temporary);
                     temporary.delete();
                     temporary = null;
                     resolved = candidates.next();
@@ -285,7 +302,10 @@ public final class LocalDownloadManager {
             throw ex;
         } finally {
             if (destination != null) NativeAudioStore.abort(destination);
-            if (temporary != null) temporary.delete();
+            if (temporary != null) {
+                LIVE_TEMPORARY_FILES.remove(temporary);
+                temporary.delete();
+            }
         }
     }
 
