@@ -208,6 +208,68 @@ downloaded assets). So an in-place update only works v5 -> v6; going to v6 from 
 uninstall first.
 `ytm_signed_v5.apk` — SHA-256 `7b5a3665be10a5788bb8300281dcd8ab3812b9263477e4c6cdb16bbe9d8b8240`.
 
+**v7 was built without Gradle at all.** `:extensions:shared:syncExtension` also fails now: the
+`app.morphe.patches:2.0.0` plugin is still unreachable (401), so *no* Gradle task starts, including
+`syncExtension`. Compile the two changed files with plain `javac` against the classes left by the last
+successful build, then dex them with `d8` and splice the result into `classes10.dex`:
+
+```sh
+export JAVA_HOME=/workspace/project/toolchain/jdk-21.0.13.1+2
+BT=/workspace/project/toolchain/sdk/build-tools/35.0.0
+CP=extensions/shared/build/intermediates/javac/debug/compileDebugJavaWithJavac/classes:\
+/workspace/project/toolchain/sdk/platforms/android-35/android.jar:\
+/workspace/project/toolchain/sdk/cmdline-tools/latest/lib/external/com/google/code/findbugs/jsr305/3.0.2/jsr305-3.0.2.jar:\
+/workspace/project/toolchain/sdk/cmdline-tools/latest/lib/external/com/google/protobuf/protobuf-java/3.19.3/protobuf-java-3.19.3.jar:\
+extensions/shared/libs/jump3r-1.0.5.jar
+$JAVA_HOME/bin/javac -nowarn -proc:none -sourcepath /tmp/stubs -cp "$CP" -d /tmp/out \
+  extensions/shared/src/main/java/app/morphe/extension/music/patches/downloads/{LocalDownloadManager,TopTracks}.java
+$JAVA_HOME/bin/java -cp $BT/lib/d8.jar com.android.tools.r8.D8 --min-api 26 --output ./d8out /tmp/out/.../*.class
+```
+
+Two gotchas that cost time:
+
+- `androidx.annotation.Nullable`/`NonNull` are **not** on any disk jar here. Write the two annotations
+  as source stubs in `/tmp/stubs` and pass `-sourcepath /tmp/stubs`. Do not glob every jar into the
+  classpath: `android-stubs-src.jar` matches `*.jar` and poisons the compile.
+- `d8` emits a `com/android/tools/r8/RecordTag` class. **It already exists in `classes9.dex`**, so
+  never copy that directory in — duplicate class definitions across DEX are a real install-time risk.
+  Splice only `app/morphe/extension/music/patches/downloads/`.
+
+The DEX that *defines* these classes is `classes10.dex`. A raw byte search for `TopTracks` also hits
+other DEX files, but those are string references; confirm with baksmali before splicing.
+
+`/workspace/project/build/morphe.keystore` survives resets — `build/morphe.keystore` inside the repo
+does not. `apksigner` is a shell wrapper that needs `java` on `PATH`, not just `JAVA_HOME`.
+
+### Changes in v7 (on top of v6)
+
+1. **Plays were counted two or three times.** `MediaSession` republishes metadata per song (title,
+   then artwork, then duration), and the `onSetMetadata` hook scored each republication. Dedup by
+   `lastScoredVideoId`, plus a single-thread executor so two rapid track changes cannot lose an
+   increment in the SharedPreferences read-modify-write.
+2. **Auto-downloads ran on the unbounded shared pool.** `Utils.backgroundThreadPool` is
+   `ThreadPoolExecutor(3, Integer.MAX_VALUE, …, SynchronousQueue)`, and each download opens
+   `MAX_CONNECTIONS = 6` sockets. A top-N catch-up queued hundreds of tasks. They now go through
+   `AUTO_DOWNLOAD_THREAD`, a single-thread executor; manual downloads keep the shared pool.
+3. **Wi-Fi-only was sampled once, at enqueue time.** Now `requireWifi` is threaded down to
+   `RangeQueue.checkStopped()` and `downloadUnknownLength`, so a queue that outlives the connection
+   aborts instead of falling back to mobile data. `isOnWifi` also requires
+   `NET_CAPABILITY_NOT_METERED` (0xb), so a phone hotspot no longer counts as Wi-Fi.
+4. **`downloadUnknownLength` got the same headers as `openAudioConnection`** — `Referer` and
+   `setInstanceFollowRedirects(true)`. This is the likely cause of 403 on streams without a
+   Content-Length.
+5. **Smaller robustness fixes** — formats with `getBitrate() == 0` are filtered out (they would pass
+   the `<= bitrateKbps*1000` ceiling), `isInTop` rejects a score `<= 0` (rank 0 when every neighbour
+   is also zero), and `sweepOrphanedTemporaryFiles()` deletes `rvx-audio-*.part` left by a kill.
+
+`ytm_ultimate_v7.apk` — SHA-256 `83662c11b446a4e6bd0d42cad4ad65c7923799e44a5e2ba9695af85d5d6c6c01`,
+86 525 396 bytes, same `9c70c674…` signer as v5/v6.
+
+**What "tested" means here.** Gradle cannot run, so `./gradlew test` is unavailable. The JUnit tests
+were executed by compiling `TopTracksTest` against the real `TopTracks.class` with a 20-line local
+`org.junit` stub and running it reflectively: 10/10 pass. Nothing was installed on a device, so
+runtime behaviour on a phone is *unverified* — say so plainly rather than implying a device test.
+
 Verification that caught nothing this time but is worth repeating: all 10 DEX headers/checksums valid,
 0 unresolved class references, `apksigner verify` OK, `zipalign -c 4` OK, badging unchanged
 (`anddea.youtube.music` 91551240 / 9.15.51), 5816 zip entries CRC-clean.
