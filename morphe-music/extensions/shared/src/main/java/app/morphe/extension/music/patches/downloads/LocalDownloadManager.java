@@ -90,11 +90,29 @@ public final class LocalDownloadManager {
     // song and playlist requests share one result for each active media download.
     private static final ConcurrentHashMap<String, FutureTask<Uri>> ACTIVE_DOWNLOADS = new ConcurrentHashMap<>();
 
+    /**
+     * Ids already queued or running. ACTIVE_DOWNLOADS is only populated once the task starts
+     * executing, so a catch-up that runs while the queue is busy would enqueue the same track
+     * again for every pass.
+     */
+    private static final Set<String> PENDING_DOWNLOADS = ConcurrentHashMap.newKeySet();
+
     private static volatile String currentTitle;
     private static volatile String currentArtist;
 
-    /** Last song already scored, so repeat metadata updates for one song count as one play. */
+    /**
+     * Last song already scored and when, so repeat metadata updates for one song count as one
+     * play while replaying the same song later still counts. A bare id is not enough: a user
+     * looping one track would never score a second play.
+     */
     private static volatile String lastScoredVideoId;
+    private static volatile long lastScoredAt;
+
+    /**
+     * A republication of the same song's metadata arrives within a second or so; a real replay
+     * takes longer than this to restart. Only touched on {@link #PLAY_SCORING_THREAD}.
+     */
+    private static final long REPEAT_PLAY_WINDOW_MILLISECONDS = 15_000;
 
     /**
      * Single thread so two rapid track changes cannot interleave their read-modify-write
@@ -118,6 +136,22 @@ public final class LocalDownloadManager {
 
     private static final java.util.concurrent.atomic.AtomicBoolean SWEPT_ORPHANS = new java.util.concurrent.atomic.AtomicBoolean();
 
+    /** Guards the create-then-register pair, which must be atomic against the sweep. */
+    private static final Object TEMPORARY_FILE_LOCK = new Object();
+
+    /**
+     * Creates a temp file and registers it as live before it becomes visible to the sweep.
+     * Creating it first and registering after leaves a window where the file exists on disk
+     * without being claimed, and a concurrent sweep would delete it.
+     */
+    private static File createLiveTemporaryFile() throws java.io.IOException {
+        synchronized (TEMPORARY_FILE_LOCK) {
+            File file = File.createTempFile("rvx-audio-", ".part", Utils.getContext().getCacheDir());
+            LIVE_TEMPORARY_FILES.add(file);
+            return file;
+        }
+    }
+
     public static void onSetMetadata(android.media.MediaMetadata metadata) {
         if (metadata == null) return;
         currentTitle = metadata.getString(android.media.MediaMetadata.METADATA_KEY_TITLE);
@@ -128,12 +162,27 @@ public final class LocalDownloadManager {
         final String artist = currentArtist;
         final String videoId = app.morphe.extension.music.shared.VideoInformation.getVideoId();
         // MediaSession republishes metadata several times per song (title first, then
-        // artwork, then duration). Scoring each update would multiply one play by three.
-        if (videoId == null || videoId.equals(lastScoredVideoId)) return;
-        lastScoredVideoId = videoId;
+        // artwork, then duration). Scoring each update would multiply one play by three, but
+        // ignoring every repeat of an id would mean a looped track never scores again, so the
+        // decision is made on the scoring thread where it can also be atomic.
+        if (videoId == null) return;
         PLAY_SCORING_THREAD.execute(() -> {
+            long now = System.currentTimeMillis();
+            if (!shouldScorePlay(lastScoredVideoId, lastScoredAt, videoId, now)) return;
+            lastScoredVideoId = videoId;
+            lastScoredAt = now;
             TopTracks.onTrackPlayed(videoId, title, artist);
         });
+    }
+
+    /**
+     * MediaSession republishes a song's metadata within a second or so, but a replay restarts
+     * later. Only repeats inside {@link #REPEAT_PLAY_WINDOW_MILLISECONDS} are treated as
+     * republication; anything later is a new play, so looping one track still counts.
+     */
+    static boolean shouldScorePlay(String previousId, long previousAt, String videoId, long now) {
+        if (videoId == null) return false;
+        return !videoId.equals(previousId) || now - previousAt >= REPEAT_PLAY_WINDOW_MILLISECONDS;
     }
 
     private LocalDownloadManager() {
@@ -158,6 +207,8 @@ public final class LocalDownloadManager {
         // auto-download can start from any thread and must only check.
         if (quiet ? !NativeDownloads.hasStoragePermission() : !NativeDownloads.ensureStoragePermission()) return;
         if (ACTIVE_DOWNLOADS.containsKey(videoId)) return;
+        // Reserved before the task is submitted: the check above cannot see queued work.
+        if (!PENDING_DOWNLOADS.add(videoId)) return;
         // An auto-download catch-up can queue hundreds of songs. Each one opens up to
         // MAX_CONNECTIONS sockets and a LAME/MediaCodec encode, so running them on the
         // unbounded shared pool exhausts memory and gets the account throttled by 403/429.
@@ -178,12 +229,18 @@ public final class LocalDownloadManager {
             sweepOrphanedTemporaryFiles();
             if (NativeAudioStore.find(videoId) != null) return;
             if (!quiet) Utils.showToastShort(str("morphe_music_downloads_started"));
-            download(videoId, quiet);
+            // `quiet` only says whether toasts are wanted; the Wi-Fi requirement is the user's
+            // setting. Passing `quiet` here made every auto-download Wi-Fi-only even with the
+            // option turned off.
+            download(videoId, quiet && Settings.AUTO_DOWNLOAD_WIFI_ONLY.get());
             if (!quiet) Utils.showToastShort(str("morphe_music_downloads_complete"));
             NativePlaylistStore.refreshUnsortedLater(); // list the new single.
         } catch (Exception ex) {
             Logger.printException(() -> "Local audio download failed: " + videoId, ex);
             if (!quiet) Utils.showToastShort(str("morphe_music_downloads_failed"));
+        } finally {
+            // Released here, not in enqueue: the id is reserved for the whole run.
+            PENDING_DOWNLOADS.remove(videoId);
         }
     }
 
@@ -230,13 +287,18 @@ public final class LocalDownloadManager {
     private static void sweepOrphanedTemporaryFiles() {
         if (!SWEPT_ORPHANS.compareAndSet(false, true)) return;
         try {
-            File[] candidates = Utils.getContext().getCacheDir()
-                    .listFiles((dir, name) -> name.startsWith("rvx-audio-") && name.endsWith(".part"));
-            if (candidates == null) return;
-            for (File orphan : candidates) {
-                if (LIVE_TEMPORARY_FILES.contains(orphan)) continue;
-                if (orphan.delete()) {
-                    Logger.printDebug(() -> "Deleted orphaned temporary file: " + orphan.getName());
+            File[] candidates;
+            // Held against createLiveTemporaryFile so a file is either claimed or swept,
+            // never caught in between.
+            synchronized (TEMPORARY_FILE_LOCK) {
+                candidates = Utils.getContext().getCacheDir()
+                        .listFiles((dir, name) -> name.startsWith("rvx-audio-") && name.endsWith(".part"));
+                if (candidates == null) return;
+                for (File orphan : candidates) {
+                    if (LIVE_TEMPORARY_FILES.contains(orphan)) continue;
+                    if (orphan.delete()) {
+                        Logger.printDebug(() -> "Deleted orphaned temporary file: " + orphan.getName());
+                    }
                 }
             }
         } catch (Exception ex) {
@@ -254,6 +316,9 @@ public final class LocalDownloadManager {
             // A competing request may have published the track between the lookup and single-flight ownership.
             Uri saved = NativeAudioStore.find(videoId);
             if (saved != null) return saved;
+            // Stream resolution is an InnerTube request, so it needs the gate too, not just the
+            // audio transfer that follows it.
+            requireNetwork(requireWifi);
             StreamCandidates candidates = new StreamCandidates(videoId);
             ResolvedStream resolved = candidates.next();
             if (resolved == null) throw new IOException("Audio stream unavailable");
@@ -264,8 +329,7 @@ public final class LocalDownloadManager {
             Format format;
             while (true) {
                 format = resolved.format();
-                temporary = File.createTempFile("rvx-audio-", ".part", Utils.getContext().getCacheDir());
-                LIVE_TEMPORARY_FILES.add(temporary);
+                temporary = createLiveTemporaryFile();
                 try {
                     // Keep the existing bounded parallel range/resume downloader.
                     downloadWithResume(videoId, title, format.getUrl(),
@@ -276,6 +340,8 @@ public final class LocalDownloadManager {
                     LIVE_TEMPORARY_FILES.remove(temporary);
                     temporary.delete();
                     temporary = null;
+                    // Asking another client for a url is another request.
+                    requireNetwork(requireWifi);
                     resolved = candidates.next();
                     if (resolved == null) throw ex;
                 }
@@ -301,10 +367,21 @@ public final class LocalDownloadManager {
             showDownloadNotification(videoId, title, 0, false, str("morphe_music_downloads_failed"));
             throw ex;
         } finally {
-            if (destination != null) NativeAudioStore.abort(destination);
+            // abort() can throw (it touches MediaStore on some paths); a throw here would skip
+            // the temp file release below and leave it claimed forever.
+            if (destination != null) {
+                try {
+                    NativeAudioStore.abort(destination);
+                } catch (Exception ex) {
+                    Logger.printDebug(() -> "Could not abort incomplete audio", ex);
+                }
+            }
             if (temporary != null) {
-                LIVE_TEMPORARY_FILES.remove(temporary);
-                temporary.delete();
+                final File leftover = temporary;
+                LIVE_TEMPORARY_FILES.remove(leftover);
+                if (!leftover.delete()) {
+                    Logger.printDebug(() -> "Could not delete temporary file: " + leftover.getName());
+                }
             }
         }
     }
@@ -370,7 +447,9 @@ public final class LocalDownloadManager {
         while (true) {
             long now = System.currentTimeMillis();
             long previous = lastNotificationTime.get();
-            long remaining = NOTIFICATION_INTERVAL_MILLISECONDS - (now - previous);
+            // Clamped: a wall-clock jump backwards would otherwise make this sleep for hours.
+            long remaining = Math.min(NOTIFICATION_INTERVAL_MILLISECONDS,
+                    NOTIFICATION_INTERVAL_MILLISECONDS - (now - previous));
 
             if (remaining <= 0) {
                 if (lastNotificationTime.compareAndSet(previous, now)) return;
@@ -391,7 +470,12 @@ public final class LocalDownloadManager {
     private static void downloadWithResume(String videoId, String title, String url,
                                            NativeAudioStore.Destination temporary, long expectedLength,
                                            boolean requireWifi) throws Exception {
-        if (expectedLength <= 0) expectedLength = probeContentLength(url);
+        if (expectedLength <= 0) {
+            // The probe is a real network request, so it needs the same Wi-Fi gate as the
+            // transfer it is about to size up.
+            requireNetwork(requireWifi);
+            expectedLength = probeContentLength(url);
+        }
         final long totalLength = expectedLength;
 
         if (totalLength <= 0) {
@@ -592,6 +676,17 @@ public final class LocalDownloadManager {
         }
     }
 
+    /**
+     * Gate for every network request a download makes. Checking the network and then opening a
+     * connection leaves a small window, but it stops a queue that outlived the Wi-Fi from
+     * quietly continuing over mobile data.
+     */
+    private static void requireNetwork(boolean requireWifi) {
+        if (requireWifi && !TopTracks.isOnWifi()) {
+            throw new CancellationException("Wi-Fi connection lost");
+        }
+    }
+
     private static long probeContentLength(String url) {
         HttpURLConnection connection = null;
         try {
@@ -624,7 +719,7 @@ public final class LocalDownloadManager {
 
     private static void downloadUnknownLength(String url, NativeAudioStore.Destination destination,
                                               boolean requireWifi) throws Exception {
-        if (requireWifi && !TopTracks.isOnWifi()) throw new IllegalStateException("Wi-Fi connection lost");
+        requireNetwork(requireWifi);
         HttpURLConnection connection = Requester.openConnection(url);
         connection.setConnectTimeout(CONNECT_TIMEOUT_MILLISECONDS);
         connection.setReadTimeout(READ_TIMEOUT_MILLISECONDS);
@@ -644,8 +739,16 @@ public final class LocalDownloadManager {
                  FileOutputStream output = destination.openOutput()) {
                 byte[] buffer = new byte[BUFFER_SIZE];
                 int read;
+                long copied = 0;
                 while ((read = input.read(buffer)) != -1) {
                     output.write(buffer, 0, read);
+                    copied += read;
+                    // A single check at the top only covers the connection setup; a long
+                    // transfer has to notice the Wi-Fi going away as well.
+                    if (requireWifi && copied >= BUFFER_SIZE * 64) {
+                        copied = 0;
+                        requireNetwork(true);
+                    }
                 }
             }
         } finally {
