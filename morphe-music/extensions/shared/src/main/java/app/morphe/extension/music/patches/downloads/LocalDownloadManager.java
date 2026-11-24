@@ -153,6 +153,17 @@ public final class LocalDownloadManager {
     }
 
     public static void onSetMetadata(android.media.MediaMetadata metadata) {
+        // Runs on the main thread inside Music's own MediaSession callback. An exception
+        // escaping here does not just lose a play count, it takes the process down, so this
+        // entry point contains every failure it can.
+        try {
+            handleMetadata(metadata);
+        } catch (Throwable ex) {
+            Logger.printException(() -> "Play scoring failure", ex);
+        }
+    }
+
+    private static void handleMetadata(android.media.MediaMetadata metadata) {
         if (metadata == null) return;
         currentTitle = metadata.getString(android.media.MediaMetadata.METADATA_KEY_TITLE);
         currentArtist = metadata.getString(android.media.MediaMetadata.METADATA_KEY_ARTIST);
@@ -170,12 +181,24 @@ public final class LocalDownloadManager {
         // thread would otherwise stamp several republications minutes apart and count them
         // as separate plays.
         final long observedAt = elapsedRealtime();
-        PLAY_SCORING_THREAD.execute(() -> {
+        try {
+            PLAY_SCORING_THREAD.execute(() -> scoreQuietly(videoId, title, artist, observedAt));
+        } catch (Throwable ex) {
+            // Rejected execution must not surface on the main thread either.
+            Logger.printException(() -> "Could not queue play scoring", ex);
+        }
+    }
+
+    private static void scoreQuietly(String videoId, String title, String artist, long observedAt) {
+        try {
             if (!shouldScorePlay(lastScoredVideoId, lastScoredAt, videoId, observedAt)) return;
             lastScoredVideoId = videoId;
             lastScoredAt = observedAt;
             TopTracks.onTrackPlayed(videoId, title, artist);
-        });
+        } catch (Throwable ex) {
+            // On an executor thread an Error would otherwise reach the default handler.
+            Logger.printException(() -> "Play scoring task failure", ex);
+        }
     }
 
     /** Monotonic: a wall-clock correction must not make elapsed time go backwards. */
@@ -202,7 +225,13 @@ public final class LocalDownloadManager {
 
     /** Must be called from the main thread. Resolution and downloading happen in background. */
     public static void enqueue(String videoId) {
-        enqueue(videoId, false);
+        // Reached from Music's own click handlers: a throw here is an app crash, not a failed
+        // download.
+        try {
+            enqueue(videoId, false);
+        } catch (Throwable ex) {
+            Logger.printException(() -> "Manual download could not be queued", ex);
+        }
     }
 
     /** Background auto-download: no toasts, silently ignores already-saved or running tracks. */
@@ -273,9 +302,16 @@ public final class LocalDownloadManager {
             download(videoId, quiet && Settings.AUTO_DOWNLOAD_WIFI_ONLY.get());
             if (!quiet) Utils.showToastShort(str("morphe_music_downloads_complete"));
             NativePlaylistStore.refreshUnsortedLater(); // list the new single.
-        } catch (Exception ex) {
+        } catch (Throwable ex) {
+            // An Error on a pool thread would reach the default handler; on some devices that
+            // ends the process. The download is already lost either way.
             Logger.printException(() -> "Local audio download failed: " + videoId, ex);
-            if (!quiet) Utils.showToastShort(str("morphe_music_downloads_failed"));
+            if (!quiet) {
+                try {
+                    Utils.showToastShort(str("morphe_music_downloads_failed"));
+                } catch (Throwable ignored) {
+                }
+            }
         } finally {
             // Released here, not in enqueue: the id is reserved for the whole run.
             PENDING_DOWNLOADS.remove(videoId);
