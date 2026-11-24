@@ -60,4 +60,11 @@ public class PlayScoringTest {
         // A wall-clock jump backwards must not make a different song look like a repeat.
         assertTrue(LocalDownloadManager.shouldScorePlay("abc", 500_000L, "xyz", 1_000L));
     }
+
+    @Test
+    public void clockGoingBackwardsStillScoresTheSameSong() {
+        // The dangerous case: the same id, with time appearing to run backwards. Ignoring it
+        // would block every replay of this track until the clock caught up.
+        assertTrue(LocalDownloadManager.shouldScorePlay("abc", 500_000L, "abc", 1_000L));
+    }
 }

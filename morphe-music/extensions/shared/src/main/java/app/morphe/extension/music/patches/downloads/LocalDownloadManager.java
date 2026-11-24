@@ -166,13 +166,21 @@ public final class LocalDownloadManager {
         // ignoring every repeat of an id would mean a looped track never scores again, so the
         // decision is made on the scoring thread where it can also be atomic.
         if (videoId == null) return;
+        // Captured when the callback arrives, not when the scoring thread gets to it: a busy
+        // thread would otherwise stamp several republications minutes apart and count them
+        // as separate plays.
+        final long observedAt = elapsedRealtime();
         PLAY_SCORING_THREAD.execute(() -> {
-            long now = System.currentTimeMillis();
-            if (!shouldScorePlay(lastScoredVideoId, lastScoredAt, videoId, now)) return;
+            if (!shouldScorePlay(lastScoredVideoId, lastScoredAt, videoId, observedAt)) return;
             lastScoredVideoId = videoId;
-            lastScoredAt = now;
+            lastScoredAt = observedAt;
             TopTracks.onTrackPlayed(videoId, title, artist);
         });
+    }
+
+    /** Monotonic: a wall-clock correction must not make elapsed time go backwards. */
+    private static long elapsedRealtime() {
+        return android.os.SystemClock.elapsedRealtime();
     }
 
     /**
@@ -182,7 +190,11 @@ public final class LocalDownloadManager {
      */
     static boolean shouldScorePlay(String previousId, long previousAt, String videoId, long now) {
         if (videoId == null) return false;
-        return !videoId.equals(previousId) || now - previousAt >= REPEAT_PLAY_WINDOW_MILLISECONDS;
+        if (!videoId.equals(previousId)) return true;
+        // A negative delta means time went backwards. Counting the play is the safer failure:
+        // ignoring it would block every replay of this track until the clock caught up.
+        if (now < previousAt) return true;
+        return now - previousAt >= REPEAT_PLAY_WINDOW_MILLISECONDS;
     }
 
     private LocalDownloadManager() {
@@ -228,16 +240,22 @@ public final class LocalDownloadManager {
 
     /**
      * A rejected submission would otherwise strand the reservation, and the track could never be
-     * downloaded again for the life of the process.
+     * downloaded again for the life of the process. Throwable is deliberate: an executor under
+     * memory pressure throws OutOfMemoryError when it cannot create the worker thread.
      */
     private static void submitOrRelease(String videoId, java.util.concurrent.Callable<Void> task, boolean quiet) {
         try {
             if (quiet) {
-                AUTO_DOWNLOAD_THREAD.submit(task);
+                AUTO_DOWNLOAD_THREAD.execute(() -> {
+                    try {
+                        task.call();
+                    } catch (Exception ignored) {
+                    }
+                });
             } else {
                 Utils.submitOnBackgroundThread(task);
             }
-        } catch (RuntimeException ex) {
+        } catch (Throwable ex) {
             PENDING_DOWNLOADS.remove(videoId);
             throw ex;
         }
@@ -339,7 +357,7 @@ public final class LocalDownloadManager {
             // Stream resolution is an InnerTube request, so it needs the gate too, not just the
             // audio transfer that follows it.
             requireNetwork(requireWifi);
-            StreamCandidates candidates = new StreamCandidates(videoId);
+            StreamCandidates candidates = new StreamCandidates(videoId, requireWifi);
             ResolvedStream resolved = candidates.next();
             if (resolved == null) throw new IOException("Audio stream unavailable");
             AudioTagger.Tags tags = TrackMetadata.resolve(videoId, title, artist, resolved.details());
@@ -422,10 +440,12 @@ public final class LocalDownloadManager {
      */
     private static final class StreamCandidates {
         private final String videoId;
+        private final boolean requireWifi;
         private final Iterator<ClientType> clients;
 
-        StreamCandidates(String videoId) {
+        StreamCandidates(String videoId, boolean requireWifi) {
             this.videoId = videoId;
+            this.requireWifi = requireWifi;
             Logger.printDebug(() -> "Resolving stream and metadata for download: " + videoId);
             // The clients are named here because the playback order is only set up while spoofing
             // is on, and a download needs a client that answers with plain urls either way.
@@ -436,8 +456,10 @@ public final class LocalDownloadManager {
 
         /** @return The next stream with an audio url, or null once every client has been tried. */
         @Nullable
-        ResolvedStream next() {
+        ResolvedStream next() throws Exception {
             while (clients.hasNext()) {
+                // Each client is a separate InnerTube request, so the gate belongs inside the loop.
+                requireNetwork(requireWifi);
                 // Cached playback responses omit videoDetails, so fetch streams and song details together.
                 ClientType client = clients.next();
                 StreamOrDetailsDataRequest request = StreamOrDetailsDataRequest.fetchRequestForDownload(
