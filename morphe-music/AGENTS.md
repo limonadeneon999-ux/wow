@@ -360,9 +360,45 @@ the phone alone. Fall back to v8, which does not crash, meanwhile.
 `ytm_ultimate_v12.apk` — SHA-256 `e2a46839570c2a15f08c1a4bdc34ce9f2fde731f878837dfb3c639f73a61a9c5`,
 86 525 396 bytes.
 
+### v13: the crash, and the splice rule that was missing
+
+v11 and v12 crashed at launch with:
+
+```
+NoSuchMethodError: No static method m([Ljava/lang/Object;)Ljava/util/List;
+in LocalDownloadManager$StreamCandidates$$ExternalSyntheticBackport1
+  at AiProviders$$ExternalSyntheticBackport0.m
+  at SpoofVideoStreamsPatch.<clinit>
+  at jaz.onCreate
+```
+
+Not our code failing — our build breaking somebody else's. D8 numbers `$$ExternalSyntheticBackport`
+and `$$ExternalSyntheticRecord` helpers per compilation, so the number is meaningless outside the
+build that produced it. Splicing by name, as every version since v7 did, replaced `Backport1` with a
+class holding different logic, while the untouched classes kept calling it. `SpoofVideoStreamsPatch`
+reaches the List backport from its static initialiser, so the process died in `Application.onCreate`
+before any of our code ran. v11 added a `m(Object)` needs, which is the permutation that made it bite.
+
+Three rules, now applied by `tools/splice-classes.py` instead of by hand:
+
+- Backport and Record helpers are **shared**. 33 unrelated classes call
+  `StreamCandidates$$ExternalSyntheticBackport0`; D8 deduplicated the logic into our subtree. The base
+  copy is never deleted.
+- Lambda helpers belong to the class that instantiates them, so replacing ours orphans them. Those
+  are removed, and nothing else references them.
+- Helpers we bring in get a `$Morphe` suffix and **every** reference is rewritten, including calls
+  between helpers. Rewriting only the owner produces a self-call on a signature that does not exist.
+
+Checked on the built APK: unresolved references identical to the original (322, all pre-existing in
+the working base), no lost class other than the 22 old lambdas, zero stale references to them,
+`dexdump -f` clean with 7671 classes, no class defined twice across the 10 DEX.
+
+`ytm_ultimate_v13.apk` — SHA-256 `7f8ea049090c922437e8581ec76ff9a3058b9f762415ddc50db273ae95475934`,
+86 525 396 bytes. Not confirmed on a device.
+
 **Still open.** Wi-Fi/metered decoupling; extracting `PendingDownloadRegistry` and
-`TemporaryFileRegistry` so the concurrency paths can be tested without a device; and the one thing
-no review settles — whether the score actually increments once per play on hardware.
+`TemporaryFileRegistry` so the concurrency paths can be tested without a device; and whether the
+score actually increments once per play on hardware.
 
 **Two accepted limitations, not bugs.** A Wi-Fi the system marks metered (hotel, tethering) blocks
 auto-download with no visible message — deliberate, but silent. And nothing caps total transfer
