@@ -338,6 +338,28 @@ are unverified is worse than the current heuristic.
 
 Tests: 20/20 (10 `TopTracksTest`, 10 `PlayScoringTest`).
 
+### v12: crash with no root cause
+
+v11 crashes on the device. The dex is structurally valid (`dexdump -f` exits 0, 7667
+classes), no class present in v10 is missing, no reference to the changed classes is
+unresolved, no class is defined twice, the zip is byte-identical to the original except
+`classes10.dex`, the base is the expected 9.15.51, and the manifest has
+`ACCESS_NETWORK_STATE`. A clean container that crashes points at a runtime throw, and
+without a stack trace it cannot be named.
+
+So the entry points are now unable to propagate one. `onSetMetadata` runs on the main
+thread inside Music's own MediaSession callback and had no try/catch at all — anything
+thrown there, including a rejected executor submission, killed the process. It, the
+scoring task, `enqueue()` and `runDownload()` all catch `Throwable` now, and the failure
+toast is guarded too.
+
+This is a net, not a diagnosis. If it still crashes, the crash buffer is what settles it:
+`adb logcat -b crash`, or Settings > About phone > Software information > Bug report on
+the phone alone. Fall back to v8, which does not crash, meanwhile.
+
+`ytm_ultimate_v12.apk` — SHA-256 `e2a46839570c2a15f08c1a4bdc34ce9f2fde731f878837dfb3c639f73a61a9c5`,
+86 525 396 bytes.
+
 **Still open.** Wi-Fi/metered decoupling; extracting `PendingDownloadRegistry` and
 `TemporaryFileRegistry` so the concurrency paths can be tested without a device; and the one thing
 no review settles — whether the score actually increments once per play on hardware.
