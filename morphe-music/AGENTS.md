@@ -311,6 +311,37 @@ where the task runs.
 `ytm_ultimate_v10.apk` — SHA-256 `05532245fcd590f351591da3dcb5e8ac5f1b66b7d500bf595dc39a6d5ccdb79f`,
 86 525 396 bytes.
 
+### Changes in v11 (on top of v10)
+
+Four defects from the second review, three of them introduced by v9/v10.
+
+The play timestamp was taken when the scoring task *ran*, not when the MediaSession callback
+arrived, so republications queued behind a busy thread could be minutes apart and count as several
+plays. It is now captured at the callback and passed in. The clock also became
+`SystemClock.elapsedRealtime()`: `currentTimeMillis()` jumping backwards made the delta negative on
+the same id, which suppressed every replay until the clock caught up.
+
+`requireNetwork` ran once before `StreamCandidates.next()`'s client loop, but every client makes its
+own InnerTube request. Moved inside the loop. `submitOrRelease` caught `RuntimeException` only; an
+executor that cannot spawn its worker throws `OutOfMemoryError`, stranding the reservation. Now
+`Throwable`, and the quiet path uses `execute()` so an `Error` reaches the uncaught handler instead
+of being swallowed by a discarded `Future`.
+
+Rejected on purpose: `bindProcessToNetwork` would move the whole YouTube Music process, playback
+included, onto one network. `Network.openConnection` per connection is the right shape but not worth
+bypassing `Requester` for a few-millisecond race. Keep the 15s window until someone confirms YTM
+actually populates `activeQueueItemId` and the skip states — adopting an abstraction whose inputs
+are unverified is worse than the current heuristic.
+
+`ytm_ultimate_v11.apk` — SHA-256 `659668a1467736b5bd5a80f019162f1496009cb4457a42d2beac2dfc1fa51365`,
+86 525 396 bytes.
+
+Tests: 20/20 (10 `TopTracksTest`, 10 `PlayScoringTest`).
+
+**Still open.** Wi-Fi/metered decoupling; extracting `PendingDownloadRegistry` and
+`TemporaryFileRegistry` so the concurrency paths can be tested without a device; and the one thing
+no review settles — whether the score actually increments once per play on hardware.
+
 **Two accepted limitations, not bugs.** A Wi-Fi the system marks metered (hotel, tethering) blocks
 auto-download with no visible message — deliberate, but silent. And nothing caps total transfer
 time, so a server that never finishes can hold the single auto-download thread.
