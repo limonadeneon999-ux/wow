@@ -214,12 +214,32 @@ public final class LocalDownloadManager {
         // unbounded shared pool exhausts memory and gets the account throttled by 403/429.
         // Manual downloads keep the shared pool: the user asked for exactly one.
         if (quiet) {
-            AUTO_DOWNLOAD_THREAD.execute(() -> runDownload(videoId, true));
+            submitOrRelease(videoId, () -> {
+                runDownload(videoId, true);
+                return null;
+            }, true);
         } else {
-            Utils.submitOnBackgroundThread(() -> {
+            submitOrRelease(videoId, () -> {
                 runDownload(videoId, false);
                 return null;
-            });
+            }, false);
+        }
+    }
+
+    /**
+     * A rejected submission would otherwise strand the reservation, and the track could never be
+     * downloaded again for the life of the process.
+     */
+    private static void submitOrRelease(String videoId, java.util.concurrent.Callable<Void> task, boolean quiet) {
+        try {
+            if (quiet) {
+                AUTO_DOWNLOAD_THREAD.submit(task);
+            } else {
+                Utils.submitOnBackgroundThread(task);
+            }
+        } catch (RuntimeException ex) {
+            PENDING_DOWNLOADS.remove(videoId);
+            throw ex;
         }
     }
 
