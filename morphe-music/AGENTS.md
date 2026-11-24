@@ -297,6 +297,20 @@ runs, so a catch-up could queue one track repeatedly (ids now reserved at enqueu
 
 Tests: 19/19 (10 `TopTracksTest`, 9 `PlayScoringTest`).
 
+### Changes in v10 (on top of v9)
+
+v9's queue reservation leaked: the id was added to `PENDING_DOWNLOADS` before the task was
+submitted, so a rejected submission left it reserved forever and that track could never be
+downloaded again for the life of the process. Both submissions now go through `submitOrRelease`,
+which removes the reservation if the executor refuses the task.
+
+Pattern worth remembering: every `Set.add` used as a reservation needs a release on *every* exit,
+including the ones where the work never starts. `finally` inside the task only covers the paths
+where the task runs.
+
+`ytm_ultimate_v10.apk` — SHA-256 `05532245fcd590f351591da3dcb5e8ac5f1b66b7d500bf595dc39a6d5ccdb79f`,
+86 525 396 bytes.
+
 **Two accepted limitations, not bugs.** A Wi-Fi the system marks metered (hotel, tethering) blocks
 auto-download with no visible message — deliberate, but silent. And nothing caps total transfer
 time, so a server that never finishes can hold the single auto-download thread.
