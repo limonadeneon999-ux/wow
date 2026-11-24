@@ -281,6 +281,26 @@ file from a dead one. Serialising one code path does not serialise the other.
 `ytm_ultimate_v8.apk` — SHA-256 `6ed81eb0d72ba253f99ce6becb03533ac2f5d952c3dd04b95a0a0369c0399d49`,
 86 525 396 bytes.
 
+### Changes in v9 (on top of v8)
+
+Six defects in v7/v8, found by adversarial review. The worst: `runDownload` passed `quiet` as
+`requireWifi`, so every auto-download was Wi-Fi-only even with the setting off — the setting did
+nothing. Also fixed: replay dedup by id alone meant a looped track scored once ever (now a 15s
+window, decided on the scoring thread); four network paths bypassed the Wi-Fi gate (stream
+resolution, length probe, 403 retry, unknown-length copy loop — all now `requireNetwork`);
+`createTempFile` and its registration raced the sweep (one shared lock now); a throw from `abort()`
+skipped the temp release; and `enqueue` checked `ACTIVE_DOWNLOADS`, which is empty until the task
+runs, so a catch-up could queue one track repeatedly (ids now reserved at enqueue).
+
+`ytm_ultimate_v9.apk` — SHA-256 `4d1e44215ffd89f7c659f500a9b0d24660c764ad38b6143bd3374f286189c31c`,
+86 525 396 bytes.
+
+Tests: 19/19 (10 `TopTracksTest`, 9 `PlayScoringTest`).
+
+**Two accepted limitations, not bugs.** A Wi-Fi the system marks metered (hotel, tethering) blocks
+auto-download with no visible message — deliberate, but silent. And nothing caps total transfer
+time, so a server that never finishes can hold the single auto-download thread.
+
 **What "tested" means here.** Gradle cannot run, so `./gradlew test` is unavailable. The JUnit tests
 were executed by compiling `TopTracksTest` against the real `TopTracks.class` with a 20-line local
 `org.junit` stub and running it reflectively: 10/10 pass. Nothing was installed on a device, so
