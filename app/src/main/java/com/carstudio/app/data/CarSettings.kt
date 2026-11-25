@@ -23,5 +23,7 @@ data class CarSettings(
     val weatherCity: String = "Paris",
     val weatherRefreshMinutes: Int = 60,
     val weatherWifiOnly: Boolean = true,
-    val mediaEnabled: Boolean = true
+    val mediaEnabled: Boolean = true,
+    val demoMode: Boolean = false,
+    val hiddenApps: List<String> = emptyList()
 )

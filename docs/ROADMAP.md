@@ -9,10 +9,14 @@
 - [x] Mode conduite (verrou, grosses cibles, animations réduites)
 
 ## v0.2 — vraies données
-- [ ] Météo réelle (API Open-Meteo, sans clé)
-- [ ] Média réel via MediaSession (notifications listener)
-- [ ] Batterie, réseau, GPS réels
+- [x] Météo réelle (API Open-Meteo, sans clé, cache, Wi-Fi uniquement)
+- [x] Média réel via MediaSession (notifications listener)
+- [x] Batterie réelle dans la barre du haut
+- [x] Écran Applications : favoris + masquer
+- [x] Mode démo (apps factices) pour tester sans voiture
+- [x] Tests logiques + captures Roborazzi des 6 écrans
 - [ ] Profils de thème nommés + partage par QR code
+- [ ] GPS réel (position + limites de vitesse)
 
 ## v0.3 — voiture
 - [ ] OBD-II via Bluetooth (ELM327) : vitesse, régime, températures, codes défaut

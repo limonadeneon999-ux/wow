@@ -22,20 +22,34 @@ class CarState(private val context: Context) {
     var apps by mutableStateOf<List<AppEntry>>(emptyList())
         private set
 
+    var allApps by mutableStateOf<List<AppEntry>>(emptyList())
+        private set
+
     var loading by mutableStateOf(true)
         private set
 
     fun update(block: (CarSettings) -> CarSettings) {
         settings = block(settings)
         repo.save(settings)
+        refreshVisibleApps()
     }
 
     fun updateTheme(block: (ThemeSpec) -> ThemeSpec) =
         update { it.copy(theme = block(it.theme)) }
 
     suspend fun loadApps() {
-        apps = AppLoader.load(context)
+        allApps = AppLoader.load(context)
+        refreshVisibleApps()
         loading = false
+    }
+
+    private fun refreshVisibleApps() {
+        apps = allApps.filter { it.pkg !in settings.hiddenApps }
+    }
+
+    fun toggleHidden(pkg: String) = update { s ->
+        val hidden = if (pkg in s.hiddenApps) s.hiddenApps - pkg else s.hiddenApps + pkg
+        s.copy(hiddenApps = hidden)
     }
 
     fun launch(pkg: String) {

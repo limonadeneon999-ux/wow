@@ -14,7 +14,8 @@ import java.util.Calendar
 @Composable
 fun CarStudioApp(state: CarState) {
     val settings = state.settings
-    var showSettings by remember { mutableStateOf(false) }
+    var screen by remember { mutableStateOf("home") }
+    var pickerFrom by remember { mutableStateOf("home") }
     var hour by remember { mutableStateOf(Calendar.getInstance().get(Calendar.HOUR_OF_DAY)) }
 
     LaunchedEffect(Unit) {
@@ -34,15 +35,31 @@ fun CarStudioApp(state: CarState) {
         else -> if (hour in 7..19) "day" else "night"
     }
 
-    BackHandler(enabled = showSettings) { showSettings = false }
+    BackHandler(enabled = screen != "home") {
+        screen = if (screen == "apps") pickerFrom else "home"
+    }
 
     CarTheme(settings.theme, nightMode) {
         Box(Modifier.fillMaxSize()) {
             CarBackground(settings.theme, nightMode)
-            if (showSettings) {
-                SettingsScreen(state, onClose = { showSettings = false })
-            } else {
-                HomeScreen(state, onOpenSettings = { showSettings = true })
+            when (screen) {
+                "settings" -> SettingsScreen(
+                    state,
+                    onClose = { screen = "home" },
+                    onOpenAppPicker = {
+                        pickerFrom = "settings"
+                        screen = "apps"
+                    }
+                )
+                "apps" -> AppPickerScreen(state, onClose = { screen = pickerFrom })
+                else -> HomeScreen(
+                    state,
+                    onOpenSettings = { screen = "settings" },
+                    onOpenApps = {
+                        pickerFrom = "home"
+                        screen = "apps"
+                    }
+                )
             }
         }
     }

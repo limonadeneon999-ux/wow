@@ -1,5 +1,6 @@
 package com.carstudio.app.ui.components
 
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -7,6 +8,8 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,17 +25,24 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
@@ -50,18 +60,37 @@ fun GlassCard(
     content: @Composable ColumnScope.() -> Unit
 ) {
     val shape = MaterialTheme.shapes.large
-    Column(
-        modifier = modifier
-            .clip(shape)
-            .background(
-                Brush.verticalGradient(
-                    listOf(tint.copy(alpha = 0.92f), tint.copy(alpha = 0.62f))
+    val ink = MaterialTheme.colorScheme.onSurface
+    CompositionLocalProvider(LocalContentColor provides ink) {
+        Box(
+            modifier
+                .shadow(22.dp, shape, clip = false)
+                .clip(shape)
+                .background(
+                    Brush.verticalGradient(
+                        listOf(tint.copy(alpha = 0.96f), tint.copy(alpha = 0.60f))
+                    )
                 )
+                .border(
+                    1.dp,
+                    Brush.linearGradient(
+                        listOf(ink.copy(alpha = 0.18f), ink.copy(alpha = 0.02f))
+                    ),
+                    shape
+                )
+        ) {
+            Box(
+                Modifier
+                    .matchParentSize()
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(ink.copy(alpha = 0.045f), Color.Transparent)
+                        )
+                    )
             )
-            .border(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f), shape)
-            .padding(contentPadding),
-        content = content
-    )
+            Column(Modifier.padding(contentPadding), content = content)
+        }
+    }
 }
 
 @Composable
@@ -108,6 +137,67 @@ fun SectionTitle(text: String, hint: String? = null) {
     }
 }
 
+@Composable
+fun AppIcon(
+    app: AppEntry,
+    size: Dp,
+    shape: Shape,
+    modifier: Modifier = Modifier,
+    favorite: Boolean = false
+) {
+    val tint = Color(app.color)
+    Box(
+        modifier
+            .size(size)
+            .shadow(
+                elevation = 14.dp,
+                shape = shape,
+                ambientColor = tint.copy(alpha = 0.45f),
+                spotColor = tint.copy(alpha = 0.45f)
+            )
+            .clip(shape)
+            .background(
+                Brush.linearGradient(
+                    listOf(
+                        lerp(MaterialTheme.colorScheme.surface, tint, 0.55f),
+                        lerp(MaterialTheme.colorScheme.surface, tint, 0.20f)
+                    )
+                )
+            )
+            .border(
+                1.dp,
+                Color.White.copy(alpha = if (favorite) 0.6f else 0.18f),
+                shape
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        Box(
+            Modifier
+                .matchParentSize()
+                .background(
+                    Brush.verticalGradient(
+                        listOf(Color.White.copy(alpha = 0.20f), Color.Transparent)
+                    )
+                )
+        )
+        val icon = app.icon
+        if (icon != null) {
+            Image(
+                bitmap = icon,
+                contentDescription = app.label,
+                contentScale = ContentScale.Fit,
+                modifier = Modifier.size(size * 0.62f)
+            )
+        } else {
+            Text(
+                app.label.take(1).uppercase(),
+                style = MaterialTheme.typography.headlineSmall,
+                color = Color.White
+            )
+        }
+    }
+}
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun AppTile(
@@ -119,44 +209,35 @@ fun AppTile(
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (pressed) 0.93f else 1f,
+        label = "appTileScale"
+    )
+
     Column(
         modifier
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
             .clip(MaterialTheme.shapes.medium)
-            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
+            .combinedClickable(
+                interactionSource = interaction,
+                indication = null,
+                onClick = onClick,
+                onLongClick = onLongClick
+            )
             .padding(vertical = 8.dp, horizontal = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Box(
-            Modifier
-                .size(iconSize)
-                .clip(shape)
-                .background(
-                    Brush.verticalGradient(
-                        listOf(
-                            Color(app.color).copy(alpha = 0.45f),
-                            Color(app.color).copy(alpha = 0.14f)
-                        )
-                    )
-                )
-                .border(
-                    1.dp,
-                    Color(app.color).copy(alpha = if (favorite) 0.9f else 0.3f),
-                    shape
-                ),
-            contentAlignment = Alignment.Center
-        ) {
-            Image(
-                bitmap = app.icon,
-                contentDescription = app.label,
-                contentScale = ContentScale.Fit,
-                modifier = Modifier.size(iconSize * 0.62f)
-            )
-        }
-        Spacer(Modifier.height(8.dp))
+        AppIcon(app, iconSize, shape, favorite = favorite)
+        Spacer(Modifier.height(9.dp))
         Text(
             app.label,
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.88f),
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.9f),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Center

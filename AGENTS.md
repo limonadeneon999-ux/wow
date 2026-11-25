@@ -46,8 +46,12 @@ Versions : AGP 8.7.3, Kotlin 2.0.21, Compose BOM 2024.10.01, compileSdk 35, minS
 - `CarState.kt` : état observable + actions (lancer une app, favoris, import/export).
 - `ui/theme/CarTheme.kt` : construction du ColorScheme, de la Typography et des Shapes.
 - `ui/components/` : GlassCard, halos, AppTile, contrôles de réglages, fond d'écran.
-- `ui/HomeScreen.kt` : trois dispositions (dock, split, focus).
+- `ui/HomeScreen.kt` : trois dispositions (dock, split, focus), cartes média/météo/véhicule.
 - `ui/SettingsScreen.kt` : réglages groupés, recherche, aperçu, import/export.
+- `ui/AppPickerScreen.kt` : liste des apps, favoris (étoile) et masquage (œil).
+- `data/Weather.kt` : Open-Meteo + cache + option Wi-Fi uniquement.
+- `data/Media.kt` + `media/MediaListenerService.kt` : média réel via MediaSession.
+- `ui/components/Background.kt` : dégradé + halos ; `Common.kt` : GlassCard, AppIcon, AppTile.
 
 ## Conventions
 
@@ -59,5 +63,15 @@ Versions : AGP 8.7.3, Kotlin 2.0.21, Compose BOM 2024.10.01, compileSdk 35, minS
 
 ## État
 
-- v0.1 compile et produit un APK (`dist/car-studio-0.1.0-debug.apk`).
-- Prochaines étapes : météo réelle, média via MediaSession, OBD-II, mode nuit auto.
+- v0.2 compile, tests logiques OK, 6 captures Roborazzi générées (`docs/screenshots/`).
+- Fonctionnel : thème complet, 3 accueils, météo réelle, média réel, batterie, sélecteur d'apps,
+  mode démo, réglages expliqués, export/import JSON.
+- Design : verre + halos + tuiles ombrées ; brief et prompt dans `docs/DESIGN_BRIEF.md`.
+- Prochaines étapes : OBD-II, GPS, profils de thème, mode nuit auto, refonte design via le brief.
+
+## Tests
+
+```bash
+gradle testDebugUnitTest --tests "com.carstudio.app.LogicTest"
+gradle recordRoborazziDebug   # 6 PNG dans app/build/screenshots/
+```

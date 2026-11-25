@@ -47,6 +47,17 @@ jobs:
           done
           exit 1
 
+      - name: Tests logiques
+        run: |
+          for attempt in 1 2 3; do
+            if gradle testDebugUnitTest --tests "com.carstudio.app.LogicTest" --no-daemon --max-workers=2; then
+              exit 0
+            fi
+            echo "Tentative $attempt échouée, nouvel essai dans 25 s"
+            sleep 25
+          done
+          exit 1
+
       - uses: actions/upload-artifact@v4
         with:
           name: car-studio-debug

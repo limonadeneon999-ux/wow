@@ -80,12 +80,31 @@ fun CarBackground(spec: ThemeSpec, nightMode: String, modifier: Modifier = Modif
     ) {
         if (spec.glow > 0f) {
             GlowOrb(
-                colors.orbA, 460.dp, 0.30f * spec.glow,
-                Modifier.align(Alignment.TopEnd).offset(x = 170.dp, y = (-190).dp)
+                colors.orbA, 620.dp, 0.42f * spec.glow,
+                Modifier.align(Alignment.TopEnd).offset(x = 220.dp, y = (-250).dp)
             )
             GlowOrb(
-                colors.orbB, 400.dp, 0.24f * spec.glow,
-                Modifier.align(Alignment.BottomStart).offset(x = (-150).dp, y = 170.dp)
+                colors.orbB, 520.dp, 0.34f * spec.glow,
+                Modifier.align(Alignment.BottomStart).offset(x = (-180).dp, y = 210.dp)
+            )
+            GlowOrb(
+                colors.orbA, 360.dp, 0.16f * spec.glow,
+                Modifier.align(Alignment.CenterStart).offset(x = (-170).dp, y = (-40).dp)
+            )
+        }
+        if (!day) {
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(
+                                Color.Black.copy(alpha = 0.22f),
+                                Color.Transparent,
+                                Color.Black.copy(alpha = 0.30f)
+                            )
+                        )
+                    )
             )
         }
     }

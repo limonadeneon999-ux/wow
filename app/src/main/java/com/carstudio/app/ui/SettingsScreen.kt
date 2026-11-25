@@ -57,13 +57,17 @@ private data class SettingSection(
 )
 
 @Composable
-fun SettingsScreen(state: CarState, onClose: () -> Unit) {
+fun SettingsScreen(
+    state: CarState,
+    onClose: () -> Unit,
+    onOpenAppPicker: () -> Unit = {}
+) {
     val settings = state.settings
     var query by remember { mutableStateOf("") }
     val context = LocalContext.current
     val clipboard = LocalClipboardManager.current
 
-    val sections = settingsSections(state, settings, clipboard, context)
+    val sections = settingsSections(state, settings, clipboard, context, onOpenAppPicker)
     val visible = sections.mapNotNull { section ->
         val matches = section.items.filter { item ->
             query.isBlank() || (item.title + " " + item.description + " " + item.keywords)
@@ -134,7 +138,8 @@ private fun settingsSections(
     state: CarState,
     s: CarSettings,
     clipboard: ClipboardManager,
-    context: Context
+    context: Context,
+    onOpenAppPicker: () -> Unit
 ): List<SettingSection> {
     fun toast(message: String) = Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
 
@@ -388,6 +393,38 @@ private fun settingsSections(
                     "La rangée de raccourcis en bas.",
                     s.showActions
                 ) { value -> state.update { it.copy(showActions = value) } }
+            },
+            SettingItem(
+                "Mode démo",
+                "Affiche des apps factices pour juger le rendu sans voiture. À désactiver pour retrouver tes vraies apps.",
+                "démo test aperçu"
+            ) {
+                SwitchRow(
+                    "Mode démo",
+                    "Des apps factices pour tester le rendu.",
+                    s.demoMode
+                ) { value -> state.update { it.copy(demoMode = value) } }
+            }
+        )
+    )
+
+    val applications = SettingSection(
+        "Applications",
+        "Choisis ce qui apparaît sur l'accueil et ce qui reste caché.",
+        listOf(
+            SettingItem(
+                "Choisir les apps",
+                "Ouvre la liste complète : une étoile pour les favoris, un œil pour afficher ou masquer une app.",
+                "apps applications favoris masquer liste"
+            ) {
+                SettingCard(
+                    "Choisir les apps",
+                    "${state.allApps.size} apps détectées · ${s.favorites.size} favoris · ${s.hiddenApps.size} masquées"
+                ) {
+                    Button(onClick = onOpenAppPicker) {
+                        Text("Ouvrir la liste")
+                    }
+                }
             }
         )
     )
@@ -709,7 +746,7 @@ private fun settingsSections(
         )
     )
 
-    return listOf(appearance, home, weather, media, driving, data, setup, about)
+    return listOf(appearance, home, applications, weather, media, driving, data, setup, about)
 }
 
 @Composable
@@ -753,7 +790,7 @@ private fun PreviewCard(s: CarSettings) {
             .border(1.dp, Color.White.copy(alpha = 0.1f), shape)
             .padding(16.dp)
     ) {
-        Row(Modifier.fillMaxSize()) {
+        Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Column(Modifier.weight(1f)) {
                 Text("21:42", style = MaterialTheme.typography.headlineMedium, color = ink)
                 Text(
@@ -763,28 +800,84 @@ private fun PreviewCard(s: CarSettings) {
                 )
                 Spacer(Modifier.weight(1f))
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    repeat(3) {
+                    repeat(4) {
                         Box(
                             Modifier
-                                .size(34.dp)
+                                .size(32.dp)
                                 .clip(iconShapeFor(s.theme.iconShape, s.theme.corner))
-                                .background(Color(s.theme.accent).copy(alpha = 0.45f))
+                                .background(Color(s.theme.accent).copy(alpha = 0.35f))
                                 .border(
                                     1.dp,
-                                    Color(s.theme.accent).copy(alpha = 0.6f),
+                                    Color(s.theme.accent).copy(alpha = 0.55f),
                                     iconShapeFor(s.theme.iconShape, s.theme.corner)
                                 )
                         )
                     }
                 }
             }
-            Box(
-                Modifier
-                    .width(120.dp)
-                    .fillMaxHeight()
-                    .clip(MaterialTheme.shapes.medium)
-                    .background(ink.copy(alpha = 0.08f))
-            )
+            Column(
+                Modifier.width(150.dp).fillMaxHeight(),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .height(54.dp)
+                        .clip(MaterialTheme.shapes.medium)
+                        .background(ink.copy(alpha = 0.10f))
+                        .border(1.dp, ink.copy(alpha = 0.08f), MaterialTheme.shapes.medium)
+                        .padding(8.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            Modifier
+                                .size(32.dp)
+                                .clip(iconShapeFor(s.theme.iconShape, s.theme.corner))
+                                .background(Color(s.theme.accent).copy(alpha = 0.55f))
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Column {
+                            Box(
+                                Modifier
+                                    .height(5.dp)
+                                    .fillMaxWidth(0.85f)
+                                    .clip(CircleShape)
+                                    .background(ink.copy(alpha = 0.55f))
+                            )
+                            Spacer(Modifier.height(5.dp))
+                            Box(
+                                Modifier
+                                    .height(4.dp)
+                                    .fillMaxWidth(0.55f)
+                                    .clip(CircleShape)
+                                    .background(ink.copy(alpha = 0.3f))
+                            )
+                        }
+                    }
+                }
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .clip(MaterialTheme.shapes.medium)
+                        .background(ink.copy(alpha = 0.06f))
+                        .padding(10.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        repeat(3) {
+                            Box(
+                                Modifier
+                                    .size(24.dp)
+                                    .clip(iconShapeFor(s.theme.iconShape, s.theme.corner))
+                                    .background(Color(s.theme.accent).copy(alpha = 0.35f))
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 }

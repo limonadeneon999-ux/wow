@@ -5,6 +5,6 @@ import androidx.compose.ui.graphics.ImageBitmap
 data class AppEntry(
     val pkg: String,
     val label: String,
-    val icon: ImageBitmap,
+    val icon: ImageBitmap?,
     val color: Long
 )
