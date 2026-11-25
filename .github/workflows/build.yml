@@ -37,7 +37,15 @@ jobs:
           gradle-version: '8.9'
 
       - name: Build debug APK
-        run: gradle assembleDebug --no-daemon --stacktrace
+        run: |
+          for attempt in 1 2 3; do
+            if gradle assembleDebug --no-daemon --max-workers=2 --stacktrace; then
+              exit 0
+            fi
+            echo "Tentative $attempt échouée (souvent un 429 de Maven Central), nouvel essai dans 25 s"
+            sleep 25
+          done
+          exit 1
 
       - uses: actions/upload-artifact@v4
         with:
