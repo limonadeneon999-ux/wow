@@ -2,6 +2,9 @@ package com.carstudio.app.ui
 
 import androidx.compose.ui.platform.ClipboardManager
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -33,6 +36,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.carstudio.app.CarState
 import com.carstudio.app.data.CarSettings
+import com.carstudio.app.data.MediaRepository
 import com.carstudio.app.data.Presets
 import com.carstudio.app.data.ThemePreset
 import com.carstudio.app.data.Wallpapers
@@ -388,6 +392,94 @@ private fun settingsSections(
         )
     )
 
+    val weather = SettingSection(
+        "Météo",
+        "Des données réelles, mais légères : quelques kilo-octets par mise à jour.",
+        listOf(
+            SettingItem(
+                "Ville",
+                "La ville utilisée pour la météo. La position est mémorisée après la première recherche, donc une seule requête de géocodage.",
+                "ville météo localisation"
+            ) {
+                var city by remember(s.weatherCity) { mutableStateOf(s.weatherCity) }
+                SettingCard("Ville", "La position est mémorisée après la première recherche.") {
+                    OutlinedTextField(
+                        value = city,
+                        onValueChange = { city = it },
+                        singleLine = true,
+                        label = { Text("Ville") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(Modifier.height(10.dp))
+                    Button(onClick = {
+                        state.update { it.copy(weatherCity = city.trim().ifBlank { "Paris" }) }
+                        toast("Ville enregistrée")
+                    }) {
+                        Text("Enregistrer")
+                    }
+                }
+            },
+            SettingItem(
+                "Fréquence de mise à jour",
+                "Plus c'est espacé, moins ça consomme. 60 minutes suffisent largement pour la météo.",
+                "fréquence rafraîchir intervalle données"
+            ) {
+                SliderRow(
+                    "Fréquence de mise à jour",
+                    "Un appel réseau toutes les X minutes.",
+                    s.weatherRefreshMinutes.toFloat(),
+                    15f..180f,
+                    "${s.weatherRefreshMinutes} min"
+                ) { value -> state.update { it.copy(weatherRefreshMinutes = value.toInt()) } }
+            },
+            SettingItem(
+                "Wi-Fi uniquement",
+                "Activé, la météo ne se télécharge jamais en données mobiles : elle reste sur le dernier relevé hors Wi-Fi.",
+                "wifi données mobiles économie"
+            ) {
+                SwitchRow(
+                    "Wi-Fi uniquement",
+                    "Aucune mise à jour en données mobiles.",
+                    s.weatherWifiOnly
+                ) { value -> state.update { it.copy(weatherWifiOnly = value) } }
+            }
+        )
+    )
+
+    val media = SettingSection(
+        "Média",
+        "Le lecteur en cours : YouTube Music, Spotify, VLC…",
+        listOf(
+            SettingItem(
+                "Accès aux médias",
+                "Car Studio lit uniquement le titre, l'artiste et la pochette du lecteur actif. Aucune notification n'est lue, stockée ou envoyée.",
+                "média notification autorisation lecteur"
+            ) {
+                val granted = MediaRepository.hasAccess(context)
+                SettingCard(
+                    "Accès aux médias",
+                    if (granted) "Accès accordé : le lecteur peut s'afficher."
+                    else "Accès non accordé : la carte média restera vide."
+                ) {
+                    Text(
+                        if (granted) "Tout est prêt." else "Ouvre les réglages, puis autorise Car Studio dans « Accès aux notifications ».",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                    )
+                    Spacer(Modifier.height(10.dp))
+                    Button(onClick = {
+                        context.startActivity(
+                            Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
+                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        )
+                    }) {
+                        Text(if (granted) "Vérifier l'autorisation" else "Ouvrir les réglages")
+                    }
+                }
+            }
+        )
+    )
+
     val driving = SettingSection(
         "Conduite",
         "Sécurité et confort pendant que tu roules.",
@@ -510,6 +602,73 @@ private fun settingsSections(
         )
     )
 
+    val setup = SettingSection(
+        "Mise en route",
+        "Comment voir Car Studio sur l'écran de la voiture, quel que soit le modèle.",
+        listOf(
+            SettingItem(
+                "Le principe",
+                "Car Studio est une app normale. Android Auto, lui, n'accepte que des composants signés par Google : impossible de le remplacer sur un autoradio d'origine.",
+                "android auto signature miroir principe"
+            ) {
+                SettingCard("Le principe", "Deux minutes pour comprendre.") {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            "Android Auto dessine son interface sur l'autoradio et vérifie un certificat Google. On ne peut donc pas installer une autre app « à la place » d'Android Auto sur un autoradio de série.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                        )
+                        Text(
+                            "La solution qui marche partout : afficher Car Studio en plein écran par-dessus Android Auto, avec une app de miroir. Android Auto gère alors le câble ou le sans-fil, et l'écran affiche Car Studio.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                        )
+                    }
+                }
+            },
+            SettingItem(
+                "Afficher sur l'écran",
+                "La marche à suivre pour un Pixel rooté sous Magisk, avec n'importe quel autoradio filaire ou sans fil.",
+                "miroir screenonauto km auto magisk root installer"
+            ) {
+                SettingCard("Afficher sur l'écran", "La marche à suivre, étape par étape.") {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Step(1, "Garde Android Auto installé. Ne le désinstalle pas : c'est lui qui parle à la voiture.")
+                        Step(2, "Dans Android Auto : à propos, tape 10 fois sur « Version » pour activer le mode développeur, puis coche « Sources inconnues ».")
+                        Step(3, "Installe une app de miroir compatible avec Android 17 : ScreenOnAuto (sideload) ou KM Auto (KoalaMirror, root).")
+                        Step(4, "Branche en USB ou connecte en sans-fil, lance le miroir, puis choisis Car Studio.")
+                        Spacer(Modifier.height(4.dp))
+                        Button(onClick = {
+                            runCatching {
+                                context.startActivity(
+                                    Intent(
+                                        Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                                        Uri.parse("package:com.google.android.projection.gearhead")
+                                    ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                )
+                            }.onFailure { toast("Android Auto n'est pas installé") }
+                        }) {
+                            Text("Ouvrir la fiche Android Auto")
+                        }
+                    }
+                }
+            },
+            SettingItem(
+                "Compatibilité",
+                "Filaire, sans fil, tactile, tous les formats d'écran : c'est Android Auto qui gère le transport, Car Studio s'adapte à la taille.",
+                "filaire sans fil tactile format écran compatibilité"
+            ) {
+                SettingCard("Compatibilité", "Ce qui est déjà géré.") {
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text("• Filaire et sans fil : gérés par Android Auto.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
+                        Text("• Tactile et molette : la grille et les cartes restent utilisables.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
+                        Text("• Tous formats : l'accueil s'adapte en largeur (paysage large, portrait, split).", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
+                    }
+                }
+            }
+        )
+    )
+
     val about = SettingSection(
         "À propos",
         null,
@@ -550,7 +709,33 @@ private fun settingsSections(
         )
     )
 
-    return listOf(appearance, home, driving, data, about)
+    return listOf(appearance, home, weather, media, driving, data, setup, about)
+}
+
+@Composable
+private fun Step(number: Int, text: String) {
+    Row(verticalAlignment = Alignment.Top) {
+        Box(
+            Modifier
+                .size(24.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                number.toString(),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
+        Spacer(Modifier.width(10.dp))
+        Text(
+            text,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f),
+            modifier = Modifier.weight(1f)
+        )
+    }
 }
 
 @Composable

@@ -19,5 +19,9 @@ data class CarSettings(
     val reduceMotion: Boolean = false,
     val leftHanded: Boolean = false,
     val nightMode: String = "auto",
-    val ambient: Boolean = true
+    val ambient: Boolean = true,
+    val weatherCity: String = "Paris",
+    val weatherRefreshMinutes: Int = 60,
+    val weatherWifiOnly: Boolean = true,
+    val mediaEnabled: Boolean = true
 )

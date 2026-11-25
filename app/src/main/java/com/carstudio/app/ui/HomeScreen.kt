@@ -1,6 +1,10 @@
 package com.carstudio.app.ui
 
+import android.content.Intent
+import android.content.IntentFilter
+import android.os.BatteryManager
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -13,7 +17,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Apps
 import androidx.compose.material.icons.rounded.BatteryFull
-import androidx.compose.material.icons.rounded.Cloud
 import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.Navigation
 import androidx.compose.material.icons.rounded.Pause
@@ -35,19 +38,30 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.carstudio.app.CarState
 import com.carstudio.app.data.AppEntry
 import com.carstudio.app.data.CarSettings
+import com.carstudio.app.data.MediaRepository
+import com.carstudio.app.data.MediaSnapshot
+import com.carstudio.app.data.WeatherCodes
+import com.carstudio.app.data.WeatherRepository
+import com.carstudio.app.data.WeatherSnapshot
 import com.carstudio.app.ui.components.AppTile
 import com.carstudio.app.ui.components.GlassCard
 import com.carstudio.app.ui.components.StatusPill
 import com.carstudio.app.ui.theme.iconShapeFor
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
 import kotlin.math.cos
+import kotlin.math.roundToInt
 import kotlin.math.sin
 
 @Composable
@@ -65,13 +79,17 @@ fun HomeScreen(state: CarState, onOpenSettings: () -> Unit) {
     }
     val clock = rememberClock()
 
-    Column(Modifier.fillMaxSize().padding(horizontal = 26.dp, vertical = 18.dp)) {
-        TopBar(clock, settings, onOpenSettings)
-        Spacer(Modifier.height(14.dp))
-        when (settings.layout) {
-            "split" -> SplitLayout(state, favorites, clock, Modifier.weight(1f))
-            "focus" -> FocusLayout(state, favorites, clock, Modifier.weight(1f))
-            else -> DockLayout(state, favorites, clock, Modifier.weight(1f))
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        val compact = maxWidth < 720.dp
+        val horizontal = if (compact) 16.dp else 26.dp
+        Column(Modifier.fillMaxSize().padding(horizontal = horizontal, vertical = 18.dp)) {
+            TopBar(clock, settings, onOpenSettings)
+            Spacer(Modifier.height(14.dp))
+            when (settings.layout) {
+                "split" -> SplitLayout(state, favorites, clock, Modifier.weight(1f))
+                "focus" -> FocusLayout(state, favorites, clock, Modifier.weight(1f))
+                else -> DockLayout(state, favorites, clock, Modifier.weight(1f))
+            }
         }
     }
 }
@@ -88,6 +106,55 @@ private fun rememberClock(): Calendar {
     return now
 }
 
+@Composable
+private fun rememberBattery(): Int {
+    val context = LocalContext.current
+    var level by remember { mutableStateOf(-1) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            val intent = context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+            val raw = intent?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
+            val scale = intent?.getIntExtra(BatteryManager.EXTRA_SCALE, 100) ?: 100
+            level = if (raw >= 0 && scale > 0) raw * 100 / scale else -1
+            delay(60_000L)
+        }
+    }
+    return level
+}
+
+@Composable
+private fun rememberMedia(): MediaSnapshot? {
+    val context = LocalContext.current
+    var snapshot by remember { mutableStateOf<MediaSnapshot?>(null) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            snapshot = withContext(Dispatchers.IO) { MediaRepository.snapshot(context) }
+            delay(2000L)
+        }
+    }
+    return snapshot
+}
+
+@Composable
+private fun rememberWeather(state: CarState): WeatherSnapshot? {
+    val context = LocalContext.current
+    val repository = remember { WeatherRepository(context) }
+    val settings = state.settings
+    var snapshot by remember { mutableStateOf(repository.cached()) }
+
+    LaunchedEffect(settings.weatherCity, settings.weatherRefreshMinutes, settings.weatherWifiOnly) {
+        while (true) {
+            snapshot = repository.cached()
+            val allowed = !settings.weatherWifiOnly || WeatherRepository.isWifi(context)
+            if (allowed && repository.isStale(snapshot, settings.weatherRefreshMinutes)) {
+                repository.refresh(settings.weatherCity)?.let { snapshot = it }
+            }
+            delay(5 * 60_000L)
+        }
+    }
+    return snapshot
+}
+
 private fun formatTime(clock: Calendar, style: String): String {
     val pattern = if (style == "minimal") "H:mm" else "HH:mm"
     return SimpleDateFormat(pattern, Locale.FRANCE).format(clock.time)
@@ -101,6 +168,7 @@ private fun formatDate(clock: Calendar): String =
 @Composable
 private fun TopBar(clock: Calendar, settings: CarSettings, onOpenSettings: () -> Unit) {
     val onSurface = MaterialTheme.colorScheme.onSurface
+    val battery = rememberBattery()
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         if (settings.showClock) {
             Column {
@@ -122,7 +190,7 @@ private fun TopBar(clock: Calendar, settings: CarSettings, onOpenSettings: () ->
             verticalAlignment = Alignment.CenterVertically
         ) {
             StatusPill(Icons.Rounded.Wifi, "AA")
-            StatusPill(Icons.Rounded.BatteryFull, "82 %")
+            StatusPill(Icons.Rounded.BatteryFull, if (battery >= 0) "$battery %" else "—")
             Box(
                 Modifier
                     .size(46.dp)
@@ -153,11 +221,11 @@ private fun DockLayout(
             ) {
                 when {
                     settings.showMedia && settings.showWeather -> {
-                        MediaCard(Modifier.weight(1.5f).fillMaxHeight())
-                        WeatherCard(Modifier.weight(0.7f).fillMaxHeight())
+                        MediaCard(state, Modifier.weight(1.5f).fillMaxHeight())
+                        WeatherCard(state, Modifier.weight(0.7f).fillMaxHeight())
                     }
-                    settings.showMedia -> MediaCard(Modifier.fillMaxWidth().fillMaxHeight())
-                    else -> WeatherCard(Modifier.fillMaxWidth().fillMaxHeight())
+                    settings.showMedia -> MediaCard(state, Modifier.fillMaxWidth().fillMaxHeight())
+                    else -> WeatherCard(state, Modifier.fillMaxWidth().fillMaxHeight())
                 }
             }
             Spacer(Modifier.height(16.dp))
@@ -183,11 +251,11 @@ private fun SplitLayout(
             ClockCard(clock, settings)
             if (settings.showMedia) {
                 Spacer(Modifier.height(14.dp))
-                MediaCard(Modifier.fillMaxWidth().weight(1f))
+                MediaCard(state, Modifier.fillMaxWidth().weight(1f))
             }
             if (settings.showWeather) {
                 Spacer(Modifier.height(14.dp))
-                WeatherCard(Modifier.fillMaxWidth().height(130.dp))
+                WeatherCard(state, Modifier.fillMaxWidth().height(130.dp))
             }
             if (settings.showVehicle) {
                 Spacer(Modifier.height(14.dp))
@@ -238,6 +306,7 @@ private fun FocusLayout(
 private fun FocusHero(state: CarState, clock: Calendar, modifier: Modifier) {
     val settings = state.settings
     val onSurface = MaterialTheme.colorScheme.onSurface
+    val media = rememberMedia()
     GlassCard(modifier) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
@@ -272,7 +341,12 @@ private fun FocusHero(state: CarState, clock: Calendar, modifier: Modifier) {
                     tint = MaterialTheme.colorScheme.primary
                 )
                 Spacer(Modifier.width(10.dp))
-                Text("Aucun média en cours", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    media?.title ?: "Aucun média en cours",
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
         }
     }
@@ -340,72 +414,150 @@ private fun AnalogClock(modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun MediaCard(modifier: Modifier = Modifier) {
+private fun MediaCard(state: CarState, modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    val media = rememberMedia()
+    val hasAccess = remember { MediaRepository.hasAccess(context) }
     val onSurface = MaterialTheme.colorScheme.onSurface
+
     GlassCard(modifier) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                Modifier
-                    .size(62.dp)
-                    .clip(MaterialTheme.shapes.medium)
-                    .background(
-                        Brush.linearGradient(
-                            listOf(
-                                MaterialTheme.colorScheme.primary,
-                                MaterialTheme.colorScheme.secondary
+        if (media == null) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    Modifier
+                        .size(62.dp)
+                        .clip(MaterialTheme.shapes.medium)
+                        .background(
+                            Brush.linearGradient(
+                                listOf(
+                                    MaterialTheme.colorScheme.primary,
+                                    MaterialTheme.colorScheme.secondary
+                                )
                             )
-                        )
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(Icons.Rounded.MusicNote, null, tint = Color.White)
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Rounded.MusicNote, null, tint = Color.White)
+                }
+                Spacer(Modifier.width(16.dp))
+                Column(Modifier.weight(1f)) {
+                    Text("Aucun média", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        if (hasAccess) "Lance une app de musique sur le téléphone"
+                        else "Autorise l'accès aux notifications dans les Réglages",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = onSurface.copy(alpha = 0.55f)
+                    )
+                }
             }
-            Spacer(Modifier.width(16.dp))
-            Column(Modifier.weight(1f)) {
-                Text("Aucun média", style = MaterialTheme.typography.titleMedium)
-                Text(
-                    "Lance une app de musique sur le téléphone",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = onSurface.copy(alpha = 0.55f)
-                )
-            }
-        }
-        Spacer(Modifier.weight(1f))
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = {}) { Icon(Icons.Rounded.SkipPrevious, null) }
-            Spacer(Modifier.width(6.dp))
-            Box(
-                Modifier
-                    .size(52.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primary)
-                    .clickable { },
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    Icons.Rounded.PlayArrow, null,
-                    tint = MaterialTheme.colorScheme.onPrimary
-                )
-            }
-            Spacer(Modifier.width(6.dp))
-            IconButton(onClick = {}) { Icon(Icons.Rounded.SkipNext, null) }
             Spacer(Modifier.weight(1f))
-            Icon(
-                Icons.Rounded.Pause, null,
-                tint = onSurface.copy(alpha = 0.35f)
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = { MediaRepository.previous(context) }) {
+                    Icon(Icons.Rounded.SkipPrevious, null)
+                }
+                Spacer(Modifier.width(6.dp))
+                Box(
+                    Modifier
+                        .size(52.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primary)
+                        .clickable { MediaRepository.playPause(context) },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Rounded.PlayArrow, null,
+                        tint = MaterialTheme.colorScheme.onPrimary
+                    )
+                }
+                Spacer(Modifier.width(6.dp))
+                IconButton(onClick = { MediaRepository.next(context) }) {
+                    Icon(Icons.Rounded.SkipNext, null)
+                }
+            }
+        } else {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    Modifier
+                        .size(62.dp)
+                        .clip(MaterialTheme.shapes.medium)
+                        .background(
+                            Brush.linearGradient(
+                                listOf(
+                                    MaterialTheme.colorScheme.primary,
+                                    MaterialTheme.colorScheme.secondary
+                                )
+                            )
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    val art = media.art
+                    if (art != null) {
+                        Image(
+                            bitmap = art,
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    } else {
+                        Icon(Icons.Rounded.MusicNote, null, tint = Color.White)
+                    }
+                }
+                Spacer(Modifier.width(16.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        media.title,
+                        style = MaterialTheme.typography.titleMedium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        media.artist.ifBlank { "Lecture en cours" },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = onSurface.copy(alpha = 0.55f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+            Spacer(Modifier.weight(1f))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = { MediaRepository.previous(context) }) {
+                    Icon(Icons.Rounded.SkipPrevious, null)
+                }
+                Spacer(Modifier.width(6.dp))
+                Box(
+                    Modifier
+                        .size(52.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primary)
+                        .clickable { MediaRepository.playPause(context) },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        if (media.playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                        null,
+                        tint = MaterialTheme.colorScheme.onPrimary
+                    )
+                }
+                Spacer(Modifier.width(6.dp))
+                IconButton(onClick = { MediaRepository.next(context) }) {
+                    Icon(Icons.Rounded.SkipNext, null)
+                }
+            }
         }
     }
 }
 
 @Composable
-private fun WeatherCard(modifier: Modifier = Modifier) {
+private fun WeatherCard(state: CarState, modifier: Modifier = Modifier) {
     val onSurface = MaterialTheme.colorScheme.onSurface
+    val weather = rememberWeather(state)
     GlassCard(modifier) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(
-                Icons.Rounded.Cloud, null,
-                tint = MaterialTheme.colorScheme.primary
+            Text(
+                if (weather != null) WeatherCodes.glyph(weather.code) else "◌",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.primary
             )
             Spacer(Modifier.width(8.dp))
             Text(
@@ -415,12 +567,26 @@ private fun WeatherCard(modifier: Modifier = Modifier) {
             )
         }
         Spacer(Modifier.weight(1f))
-        Text("--°", style = MaterialTheme.typography.displayMedium)
         Text(
-            "À connecter",
-            style = MaterialTheme.typography.bodySmall,
-            color = onSurface.copy(alpha = 0.5f)
+            if (weather != null) "${weather.temperature.roundToInt()}°" else "--°",
+            style = MaterialTheme.typography.displayMedium
         )
+        Text(
+            if (weather != null) WeatherCodes.label(weather.code) else "À connecter",
+            style = MaterialTheme.typography.bodySmall,
+            color = onSurface.copy(alpha = 0.5f),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+        if (weather != null) {
+            Text(
+                weather.city,
+                style = MaterialTheme.typography.labelSmall,
+                color = onSurface.copy(alpha = 0.4f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
     }
 }
 
@@ -457,11 +623,19 @@ private fun VehicleCard(modifier: Modifier = Modifier) {
 @Composable
 private fun Metric(label: String, value: String, unit: String) {
     Column {
-        Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
+        Text(
+            label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+        )
         Row(verticalAlignment = Alignment.Bottom) {
             Text(value, style = MaterialTheme.typography.headlineSmall)
             Spacer(Modifier.width(3.dp))
-            Text(unit, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
+            Text(
+                unit,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+            )
         }
     }
 }
