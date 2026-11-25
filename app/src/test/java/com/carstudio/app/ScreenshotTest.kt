@@ -8,6 +8,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onRoot
 import androidx.test.core.app.ApplicationProvider
+import com.carstudio.app.data.Presets
 import com.carstudio.app.ui.AppPickerScreen
 import com.carstudio.app.ui.HomeScreen
 import com.carstudio.app.ui.SettingsScreen
@@ -77,6 +78,22 @@ class ScreenshotTest {
 
     @Test
     fun homeDay() = screenshot("home_day", "dock", nightMode = "day")
+
+    @Test
+    fun homeEmber() {
+        val state = newState()
+        state.update {
+            it.copy(layout = "dock", theme = Presets.all.first { p -> p.id == "ember" }.spec)
+        }
+        render("home_ember") {
+            CarTheme(state.settings.theme, "night") {
+                Box(Modifier.fillMaxSize()) {
+                    CarBackground(state.settings.theme, "night")
+                    HomeScreen(state, onOpenSettings = {})
+                }
+            }
+        }
+    }
 
     @Test
     fun appPicker() {

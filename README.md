@@ -20,9 +20,9 @@ un accueil par widgets, un moteur de thème très poussé, et des réglages expl
 | --- | --- |
 | ![Focus](docs/screenshots/home_focus.png) | ![Réglages](docs/screenshots/settings.png) |
 
-| Applications | Mode jour |
-| --- | --- |
-| ![Apps](docs/screenshots/app_picker.png) | ![Jour](docs/screenshots/home_day.png) |
+| Applications | Mode jour | Thème Braise |
+| --- | --- | --- |
+| ![Apps](docs/screenshots/app_picker.png) | ![Jour](docs/screenshots/home_day.png) | ![Braise](docs/screenshots/home_ember.png) |
 
 Ces images sont générées par les tests, à partir du vrai code Compose
 (`./gradlew recordRoborazziDebug`).

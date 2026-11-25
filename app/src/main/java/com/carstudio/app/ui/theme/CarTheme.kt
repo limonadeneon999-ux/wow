@@ -60,8 +60,8 @@ private fun schemeFor(spec: ThemeSpec, nightMode: String): ColorScheme {
     val baseSurface = Color(spec.surface)
     val baseOn = Color(spec.onSurface)
 
-    val background = if (day) lerp(baseBackground, Color.White, 0.9f) else baseBackground
-    val surface = if (day) lerp(baseSurface, Color.White, 0.72f) else baseSurface
+    val background = if (day) lerp(baseBackground, Color.White, 0.88f) else baseBackground
+    val surface = if (day) lerp(Color.White, accent, 0.035f) else baseSurface
     val on = if (day) Color(0xFF10131A) else baseOn
     val onPrimary = if (day) Color.White else Color(0xFF08090C)
 

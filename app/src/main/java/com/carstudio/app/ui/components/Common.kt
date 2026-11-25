@@ -68,7 +68,10 @@ fun GlassCard(
                 .clip(shape)
                 .background(
                     Brush.verticalGradient(
-                        listOf(tint.copy(alpha = 0.96f), tint.copy(alpha = 0.60f))
+                        listOf(
+                            lerp(tint, Color.White, 0.04f),
+                            lerp(tint, Color.Black, 0.03f)
+                        )
                     )
                 )
                 .border(

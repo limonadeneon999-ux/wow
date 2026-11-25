@@ -61,6 +61,7 @@ app/src/main/java/com/carstudio/app/
 | Accueil Split | `docs/screenshots/home_split.png` |
 | Accueil Focus | `docs/screenshots/home_focus.png` |
 | Accueil jour | `docs/screenshots/home_day.png` |
+| Accueil thème Braise | `docs/screenshots/home_ember.png` |
 | Réglages | `docs/screenshots/settings.png` |
 | Applications | `docs/screenshots/app_picker.png` |
 
