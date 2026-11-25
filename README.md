@@ -96,8 +96,11 @@ app/src/main/java/com/carstudio/app/
 ## Améliorer le design
 
 Le système de design, les tokens, les captures et un prompt prêt à copier-coller sont dans
-[`docs/DESIGN_BRIEF.md`](docs/DESIGN_BRIEF.md). C'est le fichier à donner à ChatGPT ou à un
-designer pour faire évoluer le rendu sans casser l'app.
+[`docs/DESIGN_BRIEF.md`](docs/DESIGN_BRIEF.md).
+
+Pour ChatGPT, utilise plutôt [`docs/CHATGPT_PACK.md`](docs/CHATGPT_PACK.md) : c'est un fichier
+unique et autonome qui contient le brief **et tout le code source** des écrans à redesigner.
+Tu le joins à la conversation, tu colles le prompt, et ChatGPT peut réécrire les fichiers.
 
 ## Feuille de route
 
