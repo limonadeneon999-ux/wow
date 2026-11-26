@@ -305,6 +305,91 @@ private fun settingsSections(
         )
     )
 
+    val premium = SettingSection(
+        "Design premium",
+        "Les effets qui donnent de la matière : verre, grain, ombres et reflets.",
+        listOf(
+            SettingItem(
+                "Effet verre",
+                "Transparence et profondeur des cartes. Plus c'est haut, plus les reflets et la bordure sont marqués.",
+                "verre glass transparence reflet"
+            ) {
+                SliderRow(
+                    "Effet verre",
+                    "Profondeur et reflets des cartes.",
+                    s.theme.glassIntensity,
+                    0.4f..1f,
+                    "${(s.theme.glassIntensity * 100).toInt()} %"
+                ) { value -> state.updateTheme { it.copy(glassIntensity = value) } }
+            },
+            SettingItem(
+                "Texture grain",
+                "Un fin grain sur le fond, comme une photo argentique. 0 = lisse, 30 % = très marqué.",
+                "grain texture bruit matière"
+            ) {
+                SliderRow(
+                    "Texture grain",
+                    "Le grain du fond et des surfaces.",
+                    s.theme.grain,
+                    0f..0.3f,
+                    "${(s.theme.grain * 100).toInt()} %"
+                ) { value -> state.updateTheme { it.copy(grain = value) } }
+            },
+            SettingItem(
+                "Profondeur des ombres",
+                "L'épaisseur des ombres sous les cartes et les icônes. Au-delà de 150 %, l'interface paraît plus sculptée.",
+                "ombre shadow profondeur relief"
+            ) {
+                SliderRow(
+                    "Profondeur des ombres",
+                    "L'épaisseur des ombres.",
+                    s.theme.shadowDepth,
+                    0.4f..2f,
+                    "${(s.theme.shadowDepth * 100).toInt()} %"
+                ) { value -> state.updateTheme { it.copy(shadowDepth = value) } }
+            },
+            SettingItem(
+                "Reflet métallique",
+                "Un reflet diagonal sur les cartes et les icônes, comme une vitre inclinée.",
+                "métal sheen reflet brillance"
+            ) {
+                SliderRow(
+                    "Reflet métallique",
+                    "Le reflet diagonal des surfaces.",
+                    s.theme.metalSheen,
+                    0f..1f,
+                    "${(s.theme.metalSheen * 100).toInt()} %"
+                ) { value -> state.updateTheme { it.copy(metalSheen = value) } }
+            },
+            SettingItem(
+                "Lumière ambiante",
+                "Une lueur douce au centre de l'écran, teintée par la couleur d'accent.",
+                "lumière ambiance halos glow"
+            ) {
+                SliderRow(
+                    "Lumière ambiante",
+                    "La lueur centrale, teintée par l'accent.",
+                    s.theme.ambientLight,
+                    0f..0.6f,
+                    "${(s.theme.ambientLight * 100).toInt()} %"
+                ) { value -> state.updateTheme { it.copy(ambientLight = value) } }
+            },
+            SettingItem(
+                "Bordure lumineuse",
+                "L'intensité du liseré clair sur le contour des cartes et des tuiles.",
+                "bordure border liseré contour"
+            ) {
+                SliderRow(
+                    "Bordure lumineuse",
+                    "Le liseré clair des contours.",
+                    s.theme.borderGlow,
+                    0f..0.6f,
+                    "${(s.theme.borderGlow * 100).toInt()} %"
+                ) { value -> state.updateTheme { it.copy(borderGlow = value) } }
+            }
+        )
+    )
+
     val home = SettingSection(
         "Accueil",
         "La disposition de l'écran et les widgets visibles.",
@@ -746,7 +831,7 @@ private fun settingsSections(
         )
     )
 
-    return listOf(appearance, home, applications, weather, media, driving, data, setup, about)
+    return listOf(appearance, premium, home, applications, weather, media, driving, data, setup, about)
 }
 
 @Composable

@@ -96,6 +96,60 @@ class ScreenshotTest {
     }
 
     @Test
+    fun homePremium() {
+        val state = newState()
+        val premium = state.settings.theme.copy(
+            glassIntensity = 1f,
+            grain = 0.12f,
+            shadowDepth = 1.35f,
+            metalSheen = 0.8f,
+            ambientLight = 0.45f,
+            borderGlow = 0.5f
+        )
+        state.update { it.copy(layout = "dock", theme = premium) }
+        render("home_premium") {
+            CarTheme(state.settings.theme, "night") {
+                Box(Modifier.fillMaxSize()) {
+                    CarBackground(state.settings.theme, "night")
+                    HomeScreen(state, onOpenSettings = {})
+                }
+            }
+        }
+    }
+
+    @Test
+    fun homeNeon() {
+        val state = newState()
+        state.update {
+            it.copy(layout = "dock", theme = Presets.all.first { p -> p.id == "neon" }.spec)
+        }
+        render("home_neon") {
+            CarTheme(state.settings.theme, "night") {
+                Box(Modifier.fillMaxSize()) {
+                    CarBackground(state.settings.theme, "night")
+                    HomeScreen(state, onOpenSettings = {})
+                }
+            }
+        }
+    }
+
+    @Test
+    fun homeNeonFocus() {
+        val state = newState()
+        state.update {
+            it.copy(layout = "focus", theme = Presets.all.first { p -> p.id == "neon" }.spec)
+        }
+        render("home_neon_focus") {
+            CarTheme(state.settings.theme, "night") {
+                Box(Modifier.fillMaxSize()) {
+                    CarBackground(state.settings.theme, "night")
+                    HomeScreen(state, onOpenSettings = {})
+                }
+            }
+        }
+    }
+
+    @Test
     fun appPicker() {
         val state = newState()
         render("app_picker") {

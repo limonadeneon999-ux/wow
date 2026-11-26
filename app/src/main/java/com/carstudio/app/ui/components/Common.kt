@@ -51,6 +51,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.carstudio.app.data.AppEntry
+import com.carstudio.app.ui.theme.LocalThemeSpec
 
 @Composable
 fun GlassCard(
@@ -59,25 +60,35 @@ fun GlassCard(
     tint: Color = MaterialTheme.colorScheme.surface,
     content: @Composable ColumnScope.() -> Unit
 ) {
+    val spec = LocalThemeSpec.current
     val shape = MaterialTheme.shapes.large
     val ink = MaterialTheme.colorScheme.onSurface
+    val accent = MaterialTheme.colorScheme.primary
+    val glass = spec.glassIntensity.coerceIn(0.4f, 1f)
+    val sheen = spec.metalSheen.coerceIn(0f, 1f)
+    val depth = spec.shadowDepth.coerceIn(0.3f, 2.5f)
+    val border = ((0.06f + 0.30f * glass) * (0.5f + spec.borderGlow)).coerceIn(0.02f, 0.55f)
+    val base = lerp(tint, accent, 0.05f)
     CompositionLocalProvider(LocalContentColor provides ink) {
         Box(
             modifier
-                .shadow(22.dp, shape, clip = false)
+                .shadow(((8f + 18f * glass) * depth).dp, shape, clip = false)
                 .clip(shape)
                 .background(
                     Brush.verticalGradient(
                         listOf(
-                            lerp(tint, Color.White, 0.04f),
-                            lerp(tint, Color.Black, 0.03f)
+                            lerp(base, Color.White, 0.06f * glass),
+                            lerp(base, Color.Black, 0.07f * glass)
                         )
                     )
                 )
                 .border(
                     1.dp,
                     Brush.linearGradient(
-                        listOf(ink.copy(alpha = 0.18f), ink.copy(alpha = 0.02f))
+                        listOf(
+                            lerp(ink, accent, 0.45f).copy(alpha = border),
+                            ink.copy(alpha = 0.02f)
+                        )
                     ),
                     shape
                 )
@@ -87,7 +98,20 @@ fun GlassCard(
                     .matchParentSize()
                     .background(
                         Brush.verticalGradient(
-                            listOf(ink.copy(alpha = 0.045f), Color.Transparent)
+                            listOf(ink.copy(alpha = 0.02f + 0.06f * glass), Color.Transparent)
+                        )
+                    )
+            )
+            Box(
+                Modifier
+                    .matchParentSize()
+                    .background(
+                        Brush.linearGradient(
+                            listOf(
+                                Color.White.copy(alpha = 0.16f * sheen),
+                                Color.Transparent,
+                                Color.Transparent
+                            )
                         )
                     )
             )
@@ -148,15 +172,18 @@ fun AppIcon(
     modifier: Modifier = Modifier,
     favorite: Boolean = false
 ) {
+    val spec = LocalThemeSpec.current
     val tint = Color(app.color)
+    val sheen = spec.metalSheen.coerceIn(0f, 1f)
+    val borderGlow = spec.borderGlow.coerceIn(0f, 0.8f)
     Box(
         modifier
             .size(size)
             .shadow(
-                elevation = 14.dp,
+                elevation = ((if (favorite) 20f else 14f) * spec.shadowDepth.coerceIn(0.3f, 2.5f)).dp,
                 shape = shape,
-                ambientColor = tint.copy(alpha = 0.45f),
-                spotColor = tint.copy(alpha = 0.45f)
+                ambientColor = tint.copy(alpha = if (favorite) 0.75f else 0.45f),
+                spotColor = tint.copy(alpha = if (favorite) 0.75f else 0.45f)
             )
             .clip(shape)
             .background(
@@ -169,7 +196,7 @@ fun AppIcon(
             )
             .border(
                 1.dp,
-                Color.White.copy(alpha = if (favorite) 0.6f else 0.18f),
+                Color.White.copy(alpha = (if (favorite) 0.55f else 0.16f) + 0.25f * borderGlow),
                 shape
             ),
         contentAlignment = Alignment.Center
@@ -180,6 +207,19 @@ fun AppIcon(
                 .background(
                     Brush.verticalGradient(
                         listOf(Color.White.copy(alpha = 0.20f), Color.Transparent)
+                    )
+                )
+        )
+        Box(
+            Modifier
+                .matchParentSize()
+                .background(
+                    Brush.linearGradient(
+                        listOf(
+                            Color.White.copy(alpha = 0.34f * sheen),
+                            Color.Transparent,
+                            Color.Transparent
+                        )
                     )
                 )
         )

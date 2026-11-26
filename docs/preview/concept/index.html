@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Car Studio — concept premium</title>
+<style>
+  @font-face {
+    font-family: 'Sora';
+    src: url('Sora.ttf') format('truetype');
+    font-weight: 100 800;
+    font-display: block;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 2560px; height: 1440px; overflow: hidden; }
+  body {
+    font-family: 'Sora', sans-serif;
+    background: #05060d;
+    color: #eef2ff;
+    position: relative;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .glow { position: absolute; border-radius: 50%; filter: blur(140px); pointer-events: none; }
+  .glow-a { width: 1100px; height: 1100px; right: -260px; top: -420px;
+            background: radial-gradient(circle, rgba(64,120,255,.55), rgba(64,120,255,0) 70%); }
+  .glow-b { width: 1000px; height: 1000px; left: -320px; bottom: -420px;
+            background: radial-gradient(circle, rgba(176,107,255,.45), rgba(176,107,255,0) 70%); }
+  .glow-c { width: 700px; height: 700px; left: 42%; top: 34%;
+            background: radial-gradient(circle, rgba(56,214,196,.16), rgba(56,214,196,0) 70%); }
+
+  .grain { position: absolute; inset: 0; pointer-events: none; opacity: .16; mix-blend-mode: overlay; }
+
+  .app {
+    position: relative;
+    width: 100%; height: 100%;
+    padding: 54px 64px 46px;
+    display: flex; flex-direction: column;
+  }
+
+  header { display: flex; align-items: flex-start; justify-content: space-between; }
+  .clock { font-size: 104px; font-weight: 200; letter-spacing: -4px; line-height: .95; }
+  .date { margin-top: 10px; font-size: 21px; font-weight: 400; color: rgba(238,242,255,.55); letter-spacing: .3px; }
+  .status { display: flex; gap: 12px; align-items: center; }
+  .pill {
+    display: flex; align-items: center; gap: 10px;
+    height: 52px; padding: 0 22px;
+    border-radius: 999px;
+    background: rgba(255,255,255,.06);
+    border: 1px solid rgba(255,255,255,.10);
+    color: rgba(238,242,255,.82);
+    font-size: 17px; font-weight: 500;
+    backdrop-filter: blur(8px);
+  }
+  .pill svg { opacity: .8; }
+  .round-btn {
+    width: 64px; height: 64px; border-radius: 22px;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(255,255,255,.055);
+    border: 1px solid rgba(255,255,255,.11);
+  }
+
+  .cards { display: grid; grid-template-columns: 1.72fr 1fr; gap: 26px; margin-top: 34px; }
+  .card {
+    position: relative; overflow: hidden;
+    border-radius: 34px;
+    background: linear-gradient(155deg, rgba(255,255,255,.145), rgba(255,255,255,.065));
+    border: 1px solid rgba(255,255,255,.20);
+    box-shadow: 0 34px 70px -24px rgba(0,0,0,.85), inset 0 1px 0 rgba(255,255,255,.10);
+    backdrop-filter: blur(18px);
+  }
+  .card::after {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(115deg, rgba(255,255,255,.10), rgba(255,255,255,0) 38%);
+    pointer-events: none;
+  }
+
+  .media { height: 330px; display: flex; align-items: center; gap: 30px; padding: 30px 34px; }
+  .art {
+    position: relative; width: 214px; height: 214px; border-radius: 26px; flex: none;
+    background: linear-gradient(150deg, #4aa8ff 0%, #7b5cff 52%, #ff5fd2 100%);
+    box-shadow: 0 18px 42px -12px rgba(110,90,255,.75), inset 0 1px 0 rgba(255,255,255,.5);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .art svg { opacity: .92; filter: drop-shadow(0 2px 6px rgba(0,0,0,.35)); }
+  .art::after {
+    content: ''; position: absolute; inset: 0; border-radius: 26px;
+    background: linear-gradient(140deg, rgba(255,255,255,.38), rgba(255,255,255,0) 46%);
+  }
+  .meta { flex: 1; min-width: 0; }
+  .eyebrow { font-size: 15px; font-weight: 600; letter-spacing: 3px; text-transform: uppercase; color: #7fb6ff; }
+  .track { margin-top: 12px; font-size: 40px; font-weight: 600; letter-spacing: -1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .artist { margin-top: 6px; font-size: 21px; color: rgba(238,242,255,.55); }
+  .bar { margin-top: 26px; height: 6px; border-radius: 99px; background: rgba(255,255,255,.12); overflow: hidden; }
+  .bar span { display: block; width: 38%; height: 100%; border-radius: 99px;
+              background: linear-gradient(90deg, #6aa8ff, #b06bff); box-shadow: 0 0 14px rgba(120,120,255,.7); }
+  .times { display: flex; justify-content: space-between; margin-top: 9px; font-size: 15px; color: rgba(238,242,255,.42); }
+  .controls { display: flex; align-items: center; gap: 18px; margin-top: 22px; }
+  .ctrl { width: 52px; height: 52px; display: flex; align-items: center; justify-content: center; color: rgba(238,242,255,.78); }
+  .play {
+    width: 76px; height: 76px; border-radius: 999px;
+    background: linear-gradient(150deg, #6aa8ff, #7b5cff);
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 14px 30px -8px rgba(110,120,255,.85);
+  }
+
+  .weather { height: 330px; padding: 28px 32px; display: flex; flex-direction: column; }
+  .whead { display: flex; align-items: center; gap: 12px; color: rgba(238,242,255,.62); font-size: 19px; font-weight: 500; }
+  .temp { margin-top: 8px; font-size: 88px; font-weight: 200; letter-spacing: -4px; line-height: 1; }
+  .temp span { font-size: 46px; vertical-align: top; color: rgba(238,242,255,.65); }
+  .cond { margin-top: 4px; font-size: 21px; color: rgba(238,242,255,.78); }
+  .city { margin-top: 4px; font-size: 17px; color: rgba(238,242,255,.42); }
+  .forecast { margin-top: auto; display: flex; justify-content: space-between; padding-top: 14px; border-top: 1px solid rgba(255,255,255,.09); }
+  .fc { display: flex; flex-direction: column; align-items: center; gap: 7px; font-size: 16px; color: rgba(238,242,255,.55); }
+  .fc b { color: #eef2ff; font-size: 18px; font-weight: 600; }
+
+  .panel { margin-top: 26px; flex: 1; display: flex; align-items: center; padding: 10px 34px; }
+  .apps { width: 100%; display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px 24px; }
+  .tile { display: flex; align-items: center; justify-content: center; gap: 22px; padding: 10px 12px; border-radius: 26px; }
+  .tile:hover { background: rgba(255,255,255,.03); }
+  .icon {
+    position: relative; width: 104px; height: 104px; border-radius: 27px; flex: none;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 16px 30px -12px rgba(0,0,0,.9), inset 0 1px 0 rgba(255,255,255,.35);
+    border: 1px solid rgba(255,255,255,.16);
+  }
+  .icon::after { content: ''; position: absolute; inset: 0; border-radius: 27px;
+                 background: linear-gradient(140deg, rgba(255,255,255,.30), rgba(255,255,255,0) 52%); }
+  .tname { font-size: 24px; font-weight: 500; color: rgba(238,242,255,.9); }
+
+  .i-maps { background: linear-gradient(150deg, #4f8cff, #2f5bd8); }
+  .i-music { background: linear-gradient(150deg, #ff5f8f, #c53c8e); }
+  .i-phone { background: linear-gradient(150deg, #47d18a, #1f9d68); }
+  .i-pod { background: linear-gradient(150deg, #b06bff, #7a3fd6); }
+  .i-radio { background: linear-gradient(150deg, #ff9a5a, #d0662f); }
+  .i-msg { background: linear-gradient(150deg, #3fd0c9, #1a9c98); }
+  .i-video { background: linear-gradient(150deg, #ff6b6b, #c23a4c); }
+  .i-files { background: linear-gradient(150deg, #e8c66a, #b38b2f); }
+
+  .dock-wrap { margin-top: 24px; display: flex; justify-content: center; }
+  .dock {
+    display: flex; gap: 8px; padding: 10px;
+    border-radius: 30px;
+    background: rgba(255,255,255,.055);
+    border: 1px solid rgba(255,255,255,.12);
+    box-shadow: 0 30px 60px -28px rgba(0,0,0,.95), inset 0 1px 0 rgba(255,255,255,.10);
+    backdrop-filter: blur(16px);
+  }
+  .dock-item {
+    display: flex; align-items: center; gap: 13px;
+    height: 74px; padding: 0 30px; border-radius: 22px;
+    color: rgba(238,242,255,.72); font-size: 19px; font-weight: 500;
+  }
+  .dock-item.active {
+    background: linear-gradient(150deg, rgba(106,168,255,.24), rgba(123,92,255,.16));
+    border: 1px solid rgba(130,170,255,.35);
+    color: #eef2ff;
+  }
+  .dock-item svg { opacity: .9; }
+</style>
+</head>
+<body>
+  <div class="glow glow-a"></div>
+  <div class="glow glow-b"></div>
+  <div class="glow glow-c"></div>
+  <svg class="grain" xmlns="http://www.w3.org/2000/svg">
+    <filter id="noise"><feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" stitchTiles="stitch"/></filter>
+    <rect width="100%" height="100%" filter="url(#noise)"/>
+  </svg>
+
+  <div class="app">
+    <header>
+      <div>
+        <div class="clock">16:08</div>
+        <div class="date">Jeudi 26 novembre</div>
+      </div>
+      <div class="status">
+        <div class="pill">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 8.5a15 15 0 0 1 20 0M5 12a11 11 0 0 1 14 0M8.5 15.5a6.5 6.5 0 0 1 7 0"/><circle cx="12" cy="19" r="1.4" fill="currentColor" stroke="none"/></svg>
+          <span>AA</span>
+        </div>
+        <div class="pill">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="7" width="17" height="10" rx="3"/><path d="M22 10v4"/><rect x="5" y="10" width="8" height="4" rx="1" fill="currentColor" stroke="none"/></svg>
+          <span>82 %</span>
+        </div>
+        <div class="round-btn">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2.4"/><circle cx="10" cy="17" r="2.4"/></svg>
+        </div>
+      </div>
+    </header>
+
+    <div class="cards">
+      <div class="card media">
+        <div class="art">
+          <svg width="88" height="88" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6"><path d="M9 18V6l10-2v11"/><circle cx="6.5" cy="18" r="2.6"/><circle cx="16.5" cy="15" r="2.6"/></svg>
+        </div>
+        <div class="meta">
+          <div class="eyebrow">En lecture</div>
+          <div class="track">Midnight City</div>
+          <div class="artist">M83 · Hurry Up, We're Dreaming</div>
+          <div class="bar"><span></span></div>
+          <div class="times"><span>1:42</span><span>4:03</span></div>
+          <div class="controls">
+            <div class="ctrl"><svg width="30" height="30" viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zM20 6l-10 6 10 6z"/></svg></div>
+            <div class="play"><svg width="34" height="34" viewBox="0 0 24 24" fill="#fff"><path d="M8 5l12 7-12 7z"/></svg></div>
+            <div class="ctrl"><svg width="30" height="30" viewBox="0 0 24 24" fill="currentColor"><path d="M16 6h2v12h-2zM4 6l10 6-10 6z"/></svg></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card weather">
+        <div class="whead">
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="#7fb6ff"><path d="M6.5 19a4.5 4.5 0 0 1-.4-9A6 6 0 0 1 17.7 9.7 4.2 4.2 0 0 1 17 19z"/></svg>
+          <span>Météo</span>
+        </div>
+        <div class="temp">12<span>°</span></div>
+        <div class="cond">Couvert</div>
+        <div class="city">Paris · ressenti 10°</div>
+        <div class="forecast">
+          <div class="fc"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M19 5l-1.5 1.5M6.5 17.5L5 19"/></svg><b>14°</b><span>15 h</span></div>
+          <div class="fc"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6.5 17a4 4 0 0 1-.2-8A5.5 5.5 0 0 1 17 10a3.7 3.7 0 0 1 .6 7z"/></svg><b>11°</b><span>16 h</span></div>
+          <div class="fc"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6.5 17a4 4 0 0 1-.2-8A5.5 5.5 0 0 1 17 10a3.7 3.7 0 0 1 .6 7z"/><path d="M9 20l1-2M13 20l1-2"/></svg><b>9°</b><span>17 h</span></div>
+          <div class="fc"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6.5 17a4 4 0 0 1-.2-8A5.5 5.5 0 0 1 17 10a3.7 3.7 0 0 1 .6 7z"/></svg><b>8°</b><span>18 h</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card panel"><div class="apps">
+      <div class="tile"><div class="icon i-maps"><svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.7"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z"/><path d="M9 4v14M15 6v14"/></svg></div><div class="tname">Maps</div></div>
+      <div class="tile"><div class="icon i-music"><svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.7"><path d="M9 18V6l10-2v11"/><circle cx="6.5" cy="18" r="2.6"/><circle cx="16.5" cy="15" r="2.6"/></svg></div><div class="tname">Musique</div></div>
+      <div class="tile"><div class="icon i-phone"><svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.7"><path d="M6.6 3.5l3 .6 1 4-2 1.5a12 12 0 0 0 5.8 5.8l1.5-2 4 1 .6 3A2.4 2.4 0 0 1 18 20C10.3 20 4 13.7 4 6a2.4 2.4 0 0 1 2.6-2.5z"/></svg></div><div class="tname">Téléphone</div></div>
+      <div class="tile"><div class="icon i-pod"><svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.7"><rect x="8" y="2.5" width="8" height="19" rx="4"/><circle cx="12" cy="16.5" r="1.4" fill="#fff"/><path d="M10.5 7h3"/></svg></div><div class="tname">Podcasts</div></div>
+      <div class="tile"><div class="icon i-radio"><svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.7"><rect x="3" y="8" width="18" height="12" rx="3"/><path d="M7 8l10-5"/><circle cx="8.5" cy="14" r="2"/><path d="M14 13h5M14 16h5"/></svg></div><div class="tname">Radio</div></div>
+      <div class="tile"><div class="icon i-msg"><svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.7"><path d="M4 6a3 3 0 0 1 3-3h10a3 3 0 0 1 3 3v7a3 3 0 0 1-3 3H9l-5 4z"/></svg></div><div class="tname">Messages</div></div>
+      <div class="tile"><div class="icon i-video"><svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.7"><rect x="3" y="5" width="12" height="14" rx="3"/><path d="M15 10l6-3v10l-6-3z"/></svg></div><div class="tname">Vidéo</div></div>
+      <div class="tile"><div class="icon i-files"><svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.7"><path d="M3 7a2 2 0 0 1 2-2h4l2 3h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></div><div class="tname">Fichiers</div></div>
+      <div class="tile"><div class="icon i-video" style="background:linear-gradient(150deg,#ff3b3b,#b3122a)"><svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.7"><rect x="2.5" y="6" width="19" height="12" rx="4"/><path d="M10 9.5l5 2.5-5 2.5z" fill="#fff" stroke="none"/></svg></div><div class="tname">YouTube</div></div>
+      <div class="tile"><div class="icon i-phone" style="background:linear-gradient(150deg,#2fd07a,#159a52)"><svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.2 2"/></svg></div><div class="tname">Spotify</div></div>
+      <div class="tile"><div class="icon i-maps" style="background:linear-gradient(150deg,#63d2ff,#2a7bd6)"><svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.7"><path d="M12 21s7-5.6 7-11a7 7 0 1 0-14 0c0 5.4 7 11 7 11z"/><circle cx="12" cy="10" r="2.6"/></svg></div><div class="tname">Waze</div></div>
+      <div class="tile"><div class="icon i-files" style="background:linear-gradient(150deg,#9aa7c7,#5b6785)"><svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.7"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2.4"/><circle cx="10" cy="17" r="2.4"/></svg></div><div class="tname">Réglages</div></div>
+    </div></div>
+
+    <div class="dock-wrap">
+      <div class="dock">
+        <div class="dock-item active"><svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l9 18-9-4.5L3 20z"/></svg><span>Navigation</span></div>
+        <div class="dock-item"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 18V6l10-2v11"/><circle cx="6.5" cy="18" r="2.4"/><circle cx="16.5" cy="15" r="2.4"/></svg><span>Musique</span></div>
+        <div class="dock-item"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6.6 3.5l3 .6 1 4-2 1.5a12 12 0 0 0 5.8 5.8l1.5-2 4 1 .6 3A2.4 2.4 0 0 1 18 20C10.3 20 4 13.7 4 6a2.4 2.4 0 0 1 2.6-2.5z"/></svg><span>Téléphone</span></div>
+        <div class="dock-item"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></svg><span>Toutes les apps</span></div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

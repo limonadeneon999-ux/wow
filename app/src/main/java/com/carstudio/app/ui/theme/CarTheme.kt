@@ -11,16 +11,21 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.carstudio.app.data.ThemeSpec
 
 fun Long.toColor(): Color = Color(this)
+
+val LocalThemeSpec = staticCompositionLocalOf { ThemeSpec() }
 
 @Composable
 fun CarTheme(
@@ -34,7 +39,8 @@ fun CarTheme(
     val density = LocalDensity.current
 
     CompositionLocalProvider(
-        LocalDensity provides Density(density.density, density.fontScale * spec.uiScale)
+        LocalDensity provides Density(density.density, density.fontScale * spec.uiScale),
+        LocalThemeSpec provides spec
     ) {
         MaterialTheme(
             colorScheme = scheme,
@@ -109,21 +115,45 @@ private fun typographyFor(font: String): Typography {
     }
     val d = Typography()
     return Typography(
-        displayLarge = d.displayLarge.copy(fontFamily = family),
-        displayMedium = d.displayMedium.copy(fontFamily = family),
-        displaySmall = d.displaySmall.copy(fontFamily = family),
-        headlineLarge = d.headlineLarge.copy(fontFamily = family),
-        headlineMedium = d.headlineMedium.copy(fontFamily = family),
-        headlineSmall = d.headlineSmall.copy(fontFamily = family),
-        titleLarge = d.titleLarge.copy(fontFamily = family),
-        titleMedium = d.titleMedium.copy(fontFamily = family),
-        titleSmall = d.titleSmall.copy(fontFamily = family),
-        bodyLarge = d.bodyLarge.copy(fontFamily = family),
-        bodyMedium = d.bodyMedium.copy(fontFamily = family),
-        bodySmall = d.bodySmall.copy(fontFamily = family),
-        labelLarge = d.labelLarge.copy(fontFamily = family),
-        labelMedium = d.labelMedium.copy(fontFamily = family),
-        labelSmall = d.labelSmall.copy(fontFamily = family)
+        displayLarge = d.displayLarge.copy(
+            fontFamily = family, fontWeight = FontWeight.Light, letterSpacing = (-1.6).sp
+        ),
+        displayMedium = d.displayMedium.copy(
+            fontFamily = family, fontWeight = FontWeight.Light, letterSpacing = (-1.2).sp
+        ),
+        displaySmall = d.displaySmall.copy(
+            fontFamily = family, fontWeight = FontWeight.Light, letterSpacing = (-0.8).sp
+        ),
+        headlineLarge = d.headlineLarge.copy(
+            fontFamily = family, fontWeight = FontWeight.Medium, letterSpacing = (-0.4).sp
+        ),
+        headlineMedium = d.headlineMedium.copy(
+            fontFamily = family, fontWeight = FontWeight.Medium, letterSpacing = (-0.3).sp
+        ),
+        headlineSmall = d.headlineSmall.copy(
+            fontFamily = family, fontWeight = FontWeight.Medium
+        ),
+        titleLarge = d.titleLarge.copy(
+            fontFamily = family, fontWeight = FontWeight.SemiBold, letterSpacing = (-0.1).sp
+        ),
+        titleMedium = d.titleMedium.copy(
+            fontFamily = family, fontWeight = FontWeight.SemiBold, letterSpacing = 0.1.sp
+        ),
+        titleSmall = d.titleSmall.copy(
+            fontFamily = family, fontWeight = FontWeight.Medium, letterSpacing = 0.1.sp
+        ),
+        bodyLarge = d.bodyLarge.copy(fontFamily = family, letterSpacing = 0.1.sp),
+        bodyMedium = d.bodyMedium.copy(fontFamily = family, letterSpacing = 0.1.sp),
+        bodySmall = d.bodySmall.copy(fontFamily = family, letterSpacing = 0.15.sp),
+        labelLarge = d.labelLarge.copy(
+            fontFamily = family, fontWeight = FontWeight.Medium, letterSpacing = 0.45.sp
+        ),
+        labelMedium = d.labelMedium.copy(
+            fontFamily = family, fontWeight = FontWeight.Medium, letterSpacing = 0.5.sp
+        ),
+        labelSmall = d.labelSmall.copy(
+            fontFamily = family, fontWeight = FontWeight.Medium, letterSpacing = 0.6.sp
+        )
     )
 }
 

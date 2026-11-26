@@ -262,7 +262,9 @@ private fun SplitLayout(
     val settings = state.settings
     Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
         Column(Modifier.weight(0.40f).fillMaxHeight()) {
-            ClockCard(clock, settings)
+            if (!settings.showClock) {
+                ClockCard(clock, settings)
+            }
             if (settings.showWeather) {
                 Spacer(Modifier.height(14.dp))
                 WeatherCard(state, Modifier.fillMaxWidth().height(150.dp))

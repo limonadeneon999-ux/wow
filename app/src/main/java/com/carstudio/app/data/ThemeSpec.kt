@@ -18,7 +18,13 @@ data class ThemeSpec(
     val gradient: Boolean = true,
     val animated: Boolean = true,
     val wallpaper: String = "aurora",
-    val clockStyle: String = "digital"
+    val clockStyle: String = "digital",
+    val glassIntensity: Float = 0.92f,
+    val grain: Float = 0.08f,
+    val shadowDepth: Float = 1f,
+    val metalSheen: Float = 0.35f,
+    val ambientLight: Float = 0.25f,
+    val borderGlow: Float = 0.2f
 )
 
 data class ThemePreset(
@@ -74,7 +80,17 @@ object Presets {
             ThemeSpec(
                 preset = "daylight", accent = 0xFF2F6BFF, secondary = 0xFFFF7A45,
                 background = 0xFFF2F4FA, surface = 0xFFFFFFFF, onSurface = 0xFF10131A,
-                wallpaper = "daylight", glow = 0.25f
+                wallpaper = "daylight", glow = 0.25f, grain = 0.03f, ambientLight = 0.15f,
+                shadowDepth = 0.8f
+            )
+        ),
+        ThemePreset(
+            "neon", "Néon", "Cyberpunk cyan et magenta",
+            ThemeSpec(
+                preset = "neon", accent = 0xFF00F5FF, secondary = 0xFFFF00F5,
+                background = 0xFF05010A, surface = 0xFF120A1E, wallpaper = "neon",
+                glow = 0.9f, grain = 0.14f, glassIntensity = 0.85f, shadowDepth = 1.3f,
+                metalSheen = 0.7f, ambientLight = 0.4f, borderGlow = 0.45f
             )
         )
     )
@@ -89,6 +105,7 @@ object Wallpapers {
         "forest" to "Forêt",
         "mono" to "Graphite",
         "daylight" to "Jour",
+        "neon" to "Néon",
         "theme" to "Couleurs du thème"
     )
 }
